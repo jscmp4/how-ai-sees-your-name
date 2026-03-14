@@ -1,0 +1,94 @@
+{
+  "method": "White-state affinity as cultural mainstream proxy (Census 2020 demographics x SSA state-level names 2010-2024)",
+  "chicago_salary": {
+    "raw_r": 0.2114,
+    "partial_r_salary": 0.1628,
+    "partial_p_salary": 4.411286847336902e-124,
+    "double_partial_r": 0.1804,
+    "double_partial_p": 2.32996821485879e-152,
+    "within_tier": {
+      "minority_leaning": {
+        "n": 7064,
+        "r": 0.1188,
+        "p": 1.3042271138570439e-23,
+        "mean_salary": 112195.0
+      },
+      "mixed": {
+        "n": 7478,
+        "r": 0.2028,
+        "p": 3.097424560159726e-70,
+        "mean_salary": 118316.0
+      },
+      "mainstream": {
+        "n": 6357,
+        "r": 0.2191,
+        "p": 5.6235802316998235e-70,
+        "mean_salary": 120493.0
+      }
+    }
+  },
+  "elite_names": {
+    "Billionaires": {
+      "uncontrolled": {
+        "n": 1699,
+        "diff": 0.0636,
+        "p": 0.0
+      },
+      "mainstream_only": {
+        "n": 815,
+        "diff": 0.0666,
+        "p": 0.0
+      }
+    },
+    "Nobel": {
+      "uncontrolled": {
+        "n": 860,
+        "diff": 0.0678,
+        "p": 0.0
+      },
+      "mainstream_only": {
+        "n": 505,
+        "diff": 0.0676,
+        "p": 5.834925343135224e-245
+      }
+    },
+    "Senators": {
+      "uncontrolled": {
+        "n": 965,
+        "diff": 0.0864,
+        "p": 0.0
+      },
+      "mainstream_only": {
+        "n": 751,
+        "diff": 0.0737,
+        "p": 0.0
+      }
+    },
+    "Olympic": {
+      "uncontrolled": {
+        "n": 950,
+        "diff": 0.0684,
+        "p": 0.0
+      },
+      "mainstream_only": {
+        "n": 121,
+        "diff": 0.0493,
+        "p": 3.192847655102712e-41
+      }
+    }
+  },
+  "selfmade_inherited": {
+    "uncontrolled": {
+      "sm_mean": 0.047,
+      "ih_mean": 0.0364,
+      "diff": 0.0106,
+      "p": 4.856624948096309e-06
+    },
+    "mainstream_only": {
+      "sm_mean": 0.0725,
+      "ih_mean": 0.0594,
+      "diff": 0.013,
+      "p": 9.371907594718147e-08
+    }
+  }
+}
