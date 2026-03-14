@@ -1,6 +1,7 @@
 """How AI Sees Your Name — AI向量空间名字语义分析 · 交互式Web应用"""
 
 import json
+import os
 from pathlib import Path
 
 import numpy as np
@@ -10,6 +11,7 @@ import streamlit as st
 
 # ── 路径 ──
 APP_DIR = Path(__file__).resolve().parent
+ENV_PATH = APP_DIR / ".env"
 DATA_DIR = APP_DIR / "data"
 SCORES_PATH = DATA_DIR / "char_scores.json"
 NEIGHBORS_PATH = DATA_DIR / "char_neighbors.json"
@@ -139,6 +141,13 @@ def generate_ai_description(name: str, scores: dict) -> str:
     return text
 
 
+def _hex_to_rgba(hex_color: str, opacity: float) -> str:
+    """将 #RRGGBB 转为 rgba(r,g,b,a) 字符串。"""
+    h = hex_color.lstrip("#")
+    r, g, b = int(h[0:2], 16), int(h[2:4], 16), int(h[4:6], 16)
+    return f"rgba({r},{g},{b},{opacity})"
+
+
 # ══════════════════════════════════════════════════════════════
 # Plotly 图表
 # ══════════════════════════════════════════════════════════════
@@ -167,8 +176,7 @@ def make_radar(
         r=values,
         theta=labels,
         fill="toself",
-        fillcolor=color.replace(")", f",{fill_opacity})").replace("rgb", "rgba")
-            if "rgb" in color else color + f"{int(fill_opacity * 255):02x}",
+        fillcolor=_hex_to_rgba(color, fill_opacity),
         line=dict(color=color, width=2.5),
         name=name,
         marker=dict(size=6, color=color),
@@ -229,7 +237,7 @@ def make_dimension_bars(scores: dict, name: str = "") -> go.Figure:
             gridcolor="rgba(255,255,255,0.1)",
             zerolinecolor="rgba(255,255,255,0.3)",
             tickfont=dict(color="#999"),
-            titlefont=dict(color="#999"),
+            title_font=dict(color="#999"),
         ),
         yaxis=dict(tickfont=dict(color="#e0e0e0", size=13)),
         paper_bgcolor="rgba(0,0,0,0)",
@@ -876,7 +884,7 @@ def page_success():
             title="平均WEAT得分",
             gridcolor="rgba(255,255,255,0.1)",
             tickfont=dict(color="#999"),
-            titlefont=dict(color="#999"),
+            title_font=dict(color="#999"),
         ),
         legend=dict(font=dict(color="#e0e0e0"), bgcolor="rgba(0,0,0,0.3)"),
         height=400,
@@ -956,6 +964,84 @@ def page_success():
 # 主入口
 # ══════════════════════════════════════════════════════════════
 
+def _load_env():
+    """从 .env 文件加载API密钥到环境变量和session_state。"""
+    if ENV_PATH.exists():
+        with open(ENV_PATH, encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if line and not line.startswith("#") and "=" in line:
+                    k, v = line.split("=", 1)
+                    k, v = k.strip(), v.strip()
+                    if v:
+                        os.environ[k] = v
+
+
+def _save_env(anthropic_key: str, openai_key: str):
+    """保存API密钥到 .env 文件。"""
+    lines = []
+    if anthropic_key:
+        lines.append(f"ANTHROPIC_API_KEY={anthropic_key}")
+    if openai_key:
+        lines.append(f"OPENAI_API_KEY={openai_key}")
+    with open(ENV_PATH, "w", encoding="utf-8") as f:
+        f.write("\n".join(lines) + "\n")
+
+
+def sidebar_settings():
+    """侧边栏设置面板：API密钥管理。"""
+    with st.sidebar:
+        st.markdown("## ⚙️ 设置")
+
+        st.markdown("---")
+        st.markdown("### API 密钥")
+        st.caption("LLM第一印象测试需要API密钥。密钥保存在本地 `.env` 文件中，不会上传。")
+
+        # 从环境变量读取当前值
+        current_anthropic = os.environ.get("ANTHROPIC_API_KEY", "")
+        current_openai = os.environ.get("OPENAI_API_KEY", "")
+
+        anthropic_key = st.text_input(
+            "Anthropic API Key",
+            value=current_anthropic,
+            type="password",
+            placeholder="sk-ant-...",
+            key="setting_anthropic_key",
+        )
+
+        openai_key = st.text_input(
+            "OpenAI API Key",
+            value=current_openai,
+            type="password",
+            placeholder="sk-...",
+            key="setting_openai_key",
+        )
+
+        if st.button("💾 保存密钥", use_container_width=True):
+            _save_env(anthropic_key, openai_key)
+            if anthropic_key:
+                os.environ["ANTHROPIC_API_KEY"] = anthropic_key
+            if openai_key:
+                os.environ["OPENAI_API_KEY"] = openai_key
+            st.success("已保存到 .env 文件")
+
+        # 状态指示
+        st.markdown("---")
+        st.markdown("### 状态")
+        if os.environ.get("ANTHROPIC_API_KEY"):
+            st.markdown("✅ Anthropic: 已配置")
+        else:
+            st.markdown("⬜ Anthropic: 未配置")
+
+        if os.environ.get("OPENAI_API_KEY"):
+            st.markdown("✅ OpenAI: 已配置")
+        else:
+            st.markdown("⬜ OpenAI: 未配置")
+
+        st.markdown("---")
+        st.caption("点击左上角 **>** 展开此面板")
+
+
 def main():
     st.set_page_config(
         page_title="How AI Sees Your Name",
@@ -964,7 +1050,11 @@ def main():
         initial_sidebar_state="collapsed",
     )
 
+    # 加载 .env
+    _load_env()
+
     page_header()
+    sidebar_settings()
 
     # 导航
     tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
