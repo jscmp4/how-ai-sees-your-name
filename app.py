@@ -245,6 +245,41 @@ def normalize_score(raw: float, all_raw: list[float]) -> float:
     return (raw - mn) / (mx - mn) * 100
 
 
+@st.cache_data
+def _build_percentile_table():
+    """从预计算数据中构建各维度百分位映射表。"""
+    scores = load_char_scores()
+    table = {}
+    for dim in DIM_KEYS + ["composite"]:
+        vals = sorted([s[dim] for s in scores.values() if dim in s])
+        table[dim] = np.array(vals)
+    return table
+
+
+def raw_to_percentile(raw: float, dim: str) -> float:
+    """将原始WEAT得分转为百分位 (0-100)。50=中位数。"""
+    table = _build_percentile_table()
+    if dim not in table or len(table[dim]) == 0:
+        return 50.0
+    arr = table[dim]
+    idx = np.searchsorted(arr, raw, side="right")
+    return round(idx / len(arr) * 100, 1)
+
+
+def scores_to_display(raw_scores: dict) -> dict:
+    """将6维原始WEAT得分转为0-100百分位展示分数。"""
+    return {dim: raw_to_percentile(raw_scores.get(dim, 0), dim) for dim in DIM_KEYS}
+
+
+def format_grade(pct: float) -> str:
+    """百分位 → 等级标签。"""
+    if pct >= 90: return "S"
+    if pct >= 75: return "A"
+    if pct >= 50: return "B"
+    if pct >= 25: return "C"
+    return "D"
+
+
 def generate_ai_description(name: str, scores: dict) -> str:
     """生成"AI眼中的你"描述文本。"""
     top_dims = sorted(scores.items(), key=lambda x: x[1], reverse=True)
@@ -301,15 +336,17 @@ def make_radar(
     color: str = "#00d4ff",
     fill_opacity: float = 0.25,
     all_scores: dict | None = None,
+    use_percentile: bool = True,
 ) -> go.Scatterpolar:
-    """生成单个名字的雷达图trace。"""
+    """生成单个名字的雷达图trace。默认用百分位 (0-100)。"""
     values = []
     for dim in DIM_KEYS:
-        if all_scores:
+        if use_percentile:
+            values.append(raw_to_percentile(scores.get(dim, 0), dim))
+        elif all_scores:
             all_vals = [s.get(dim, 0) for s in all_scores.values() if dim in s]
             values.append(normalize_score(scores.get(dim, 0), all_vals))
         else:
-            # 使用绝对值映射：0 → 0分，0.2 → 100分
             values.append(min(100, max(0, scores.get(dim, 0) / 0.2 * 100)))
 
     values.append(values[0])  # 闭合
@@ -360,9 +397,14 @@ def make_radar_figure(
     return fig
 
 
-def make_dimension_bars(scores: dict, name: str = "") -> go.Figure:
-    """各维度得分水平条形图。"""
-    dims = sorted(scores.items(), key=lambda x: x[1], reverse=True)
+def make_dimension_bars(scores: dict, name: str = "", use_percentile: bool = True) -> go.Figure:
+    """各维度得分水平条形图。默认显示百分位 (0-100)。"""
+    if use_percentile:
+        display = {d: raw_to_percentile(scores.get(d, 0), d) for d in DIM_KEYS}
+    else:
+        display = scores
+
+    dims = sorted(display.items(), key=lambda x: x[1], reverse=True)
     labels = [DIMENSIONS[d]["icon"] + " " + DIMENSIONS[d]["label"] for d, _ in dims]
     values = [v for _, v in dims]
     colors = [DIMENSIONS[d]["color"] for d, _ in dims]
@@ -370,13 +412,14 @@ def make_dimension_bars(scores: dict, name: str = "") -> go.Figure:
     fig = go.Figure(go.Bar(
         x=values, y=labels, orientation="h",
         marker=dict(color=colors, line=dict(width=0)),
-        text=[f"{v:.4f}" for v in values],
+        text=[f"{v:.0f}/100" if use_percentile else f"{v:.4f}" for v in values],
         textposition="outside",
         textfont=dict(color="#e0e0e0", size=12),
     ))
     fig.update_layout(
         xaxis=dict(
-            title="WEAT得分（正面关联 - 负面关联）",
+            title="百分位得分 (0=最低, 100=最高)" if use_percentile else "WEAT Score",
+            range=[0, 110] if use_percentile else None,
             gridcolor="rgba(255,255,255,0.1)",
             zerolinecolor="rgba(255,255,255,0.3)",
             tickfont=dict(color="#999"),
@@ -636,20 +679,31 @@ def page_xray():
     comp = composite_score(scores)
 
     # ── 综合得分卡片 ──
+    # 百分位得分
+    display_scores = scores_to_display(scores)
+    overall_pct = raw_to_percentile(comp, "composite")
+    grade = format_grade(overall_pct)
+
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
-        # 百分位排名
-        all_composites = []
-        for s in char_scores.values():
-            all_composites.append(s.get("composite", 0))
-        percentile = sum(1 for x in all_composites if comp > x) / len(all_composites) * 100
-
         st.markdown(f"""
         <div class="score-card">
-            <div class="score-big">{comp:.4f}</div>
-            <div class="score-label">综合WEAT得分 · 超越 {percentile:.0f}% 的汉字</div>
+            <div class="score-big">{overall_pct:.0f}<span style="font-size:1.2rem">/100</span></div>
+            <div class="score-label">综合评分 · 超越 {overall_pct:.0f}% 的名字用字 · 等级 {grade}</div>
         </div>
         """, unsafe_allow_html=True)
+
+    # 六维得分卡片
+    dim_cols = st.columns(6)
+    for i, dim in enumerate(DIM_KEYS):
+        info = DIMENSIONS[dim]
+        pct = display_scores[dim]
+        with dim_cols[i]:
+            st.markdown(f"""<div style="text-align:center">
+            <div style="font-size:1.8rem">{info['icon']}</div>
+            <div style="font-size:1.5rem;font-weight:700;color:{info['color']}">{pct:.0f}</div>
+            <div style="font-size:0.75rem;color:#888">{info['label']}</div>
+            </div>""", unsafe_allow_html=True)
 
     # ── 整词 vs 字均分析 ──
     name_whole = load_name_whole_scores()
@@ -837,10 +891,16 @@ def page_pk():
 
 
 def page_leaderboard():
-    """页面3: 排行榜"""
-    char_scores = load_char_scores()
-
+    """页面: 排行榜 (中英文切换)"""
     st.markdown("### 🏆 向量空间排行榜")
+
+    lang = st.radio("Language", ["🇨🇳 中文字", "🇺🇸 English Names"], horizontal=True, key="lb_lang")
+
+    if "English" in lang:
+        _leaderboard_en()
+        return
+
+    char_scores = load_char_scores()
     st.caption("在AI的语义地图上，哪些字占据了最有利的位置？")
 
     # 维度选择
@@ -946,6 +1006,42 @@ def page_leaderboard():
     for i, (name, comp) in enumerate(combos[:20]):
         with combo_cols[i % 5]:
             st.markdown(f"**{name}** `{comp:.4f}`")
+
+
+def _leaderboard_en():
+    """English name leaderboard."""
+    en_scores = load_en_scores()
+    if not en_scores:
+        st.warning("English scores not found.")
+        return
+
+    st.caption("Which English names occupy the most favorable positions in GloVe embedding space?")
+
+    dim_options = ["composite"] + DIM_KEYS
+    dim_labels_map = {"composite": "📊 Overall", **{k: f"{v['icon']} {v['label']}" for k, v in DIMENSIONS.items()}}
+
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        selected_dim = st.selectbox("Sort by", dim_options,
+                                    format_func=lambda x: dim_labels_map[x], key="lb_en_dim")
+    with col2:
+        min_pop = st.number_input("Min SSA births", 100, 100000, 1000, step=500, key="lb_en_pop")
+    with col3:
+        top_n = st.slider("Show", 10, 100, 30, step=10, key="lb_en_n")
+
+    filtered = {k: v for k, v in en_scores.items() if v.get("frequency", 0) >= min_pop}
+    ranked = sorted(filtered.items(), key=lambda x: x[1].get(selected_dim, -999), reverse=True)[:top_n]
+
+    rows = []
+    for rank, (name, s) in enumerate(ranked, 1):
+        row = {"Rank": rank, "Name": name}
+        for dim in DIM_KEYS:
+            row[DIMENSIONS[dim]["label"]] = round(raw_to_percentile(s.get(dim, 0), dim), 0)
+        row["Overall"] = round(raw_to_percentile(s.get("composite", 0), "composite"), 0)
+        row["SSA Births"] = s.get("frequency", 0)
+        rows.append(row)
+
+    st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True, height=min(top_n * 38 + 40, 800))
 
 
 def page_about():
