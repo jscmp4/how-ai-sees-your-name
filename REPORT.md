@@ -1,509 +1,318 @@
-# How AI Sees Your Name — 研究报告：AI向量空间中的名字语义地图
+# How AI Sees Your Name: Measuring Name-Outcome Associations in Word Embedding Spaces
 
-> **用21世纪的向量空间，重新理解千年的命名文化**
-
----
-
-## 目录
-
-1. [项目背景与动机](#1-项目背景与动机)
-2. [理论基础](#2-理论基础)
-3. [方法论](#3-方法论)
-4. [核心发现](#4-核心发现)
-5. [讨论：因果 vs 相关](#5-讨论因果-vs-相关)
-6. [未来AI世界的含义](#6-未来ai世界的含义)
-7. [伦理声明](#7-伦理声明)
-8. [完整参考文献](#8-完整参考文献)
+**Authors:** [Anonymous for review]
 
 ---
 
-## 1. 项目背景与动机
+## Abstract
 
-### 1.1 一个古老命题的现代重述
+Personal names pass through word embedding layers millions of times daily in deployed AI systems — from resume screeners to credit models to large language models. Do names that occupy "favorable" positions in embedding space correlate with real-world socioeconomic outcomes? We apply the Word Embedding Association Test (WEAT) across six semantic dimensions (wealth, wisdom, happiness, health, leadership, beauty) to measure name-concept associations in both Chinese (Tencent AI Lab, 200d) and English (GloVe 6B, 300d) embedding spaces. In a Chinese-language experiment, a three-layer fusion model (Word2Vec character-average + BERT + whole-word matching) distinguishes 99,729 government grant recipients from 100,000 general-population names with AUC = 0.748. In English, name-level WEAT composites correlate with Chicago city employee salaries at r = 0.345, with top-quartile names earning $9,702/year more than bottom-quartile names. Five categories of global elites (senators, Nobel laureates, Oscar winners, Olympic gold medalists, billionaires) all score significantly higher than population baselines. Crucially, however, a state-level analysis of U.S. baby names reveals a *negative* correlation (r = −0.127) between family income and WEAT score, driven by culturally non-mainstream naming traditions in high-income communities. We argue that WEAT measures proximity to the cultural mainstream of the training corpus — which is precisely the bias vector that affects downstream AI applications.
 
-中国人讲究"名以正体、字以表德"。从周代的"名有五法"（信、义、象、假、类），到民间流传至今的"命名学"，名字从来不只是一个符号——它承载着父母的期望、时代的审美、阶层的印记。
-
-西方世界也有类似的直觉。Freakonomics 的作者 Levitt 和 Fryer 用数十年的出生记录证明，名字与社会经济结果之间存在统计学上的显著关联——虽然他们审慎地指出，这更多是相关性而非因果性。
-
-但在2020年代，这个命题获得了一个全新的维度：**AI word embeddings**。
-
-### 1.2 算法命理学（Algorithmic Numerology）
-
-当今世界，名字不再只在人类头脑中产生联想。每天有数十亿次，名字被AI系统转化为高维向量（embedding），然后在这个数学空间里被"理解"、被"评价"、被用于做出影响真实世界的决策。
-
-- 简历筛选系统把你的名字变成一个300维的向量
-- 信用评分模型可能间接处理你的名字信息
-- 内容推荐算法在embedding空间里计算名字与各种概念的距离
-- 大语言模型（LLM）对你的名字有一个"第一印象"，这个印象影响它的输出
-
-在这个语境下，**名字在向量空间中的位置就是一种真实的、可量化的"命运"**——至少是AI眼中的命运。
-
-这不是玄学。这是线性代数。
-
-本项目的核心思路是：用严谨的计算语言学方法，测量名字在主流word embedding模型中与"财富"、"智慧"、"幸福"、"健康"、"领导力"、"美感"六个正面概念的关联强度，从而绘制一幅**名字的语义地图**。
-
-### 1.3 为什么这很重要
-
-我们并不声称"名字决定命运"。但我们确实想要回答：
-
-1. **描述性问题**：在AI的"眼"中，不同名字是否被赋予了不同的语义色彩？差异有多大？
-2. **验证性问题**：那些在现实世界中取得成就的人，他们的名字是否在embedding空间中也占据"更好"的位置？
-3. **前瞻性问题**：如果AI系统越来越多地参与人生重大决策，名字的向量表示是否成为一种新的隐性偏差来源？
+**Keywords:** word embeddings, WEAT, name bias, AI fairness, cultural bias, NLP
 
 ---
 
-## 2. 理论基础
+## 1. Introduction
 
-### 2.1 Word Embeddings 中的人类偏见
+Names are among the most frequently embedded tokens in natural language processing pipelines. Every time a resume screening system processes an applicant, a content recommendation engine profiles a user, or a large language model generates a response mentioning a person, names are mapped to dense vector representations that encode — among other things — the social and cultural associations the training corpus reflects.
 
-2017年，Caliskan、Bryson和Narayanan在 *Science* 上发表了一篇里程碑式的论文。他们提出了 **WEAT（Word Embedding Association Test）** 方法——本质上是将心理学中经典的 IAT（Implicit Association Test，内隐联想测试）搬到了word embedding空间。
+We call this phenomenon **algorithmic numerology**: the assignment of implicit valence to names through the mathematics of embedding spaces. Unlike traditional numerology, this process is neither mystical nor benign. It is linear algebra applied at industrial scale, and it carries measurable consequences.
 
-他们的核心发现令人震惊：**从互联网语料库中训练出来的word embeddings包含了与人类相同的隐性偏见**。花朵比武器更"令人愉悦"，欧洲裔名字比非裔名字更"令人愉悦"——这些人类在IAT测试中表现出的认知偏差，在embedding的数学结构中被原样复制了出来 (Caliskan et al., 2017)。
+The question we investigate is straightforward: *Do names that occupy semantically "favorable" positions in word embedding spaces — closer to concepts like wealth, wisdom, and leadership — correlate with favorable real-world outcomes?* If so, what does this correlation reveal about the nature of embedding bias?
 
-这项工作打开了一扇大门。此后的研究不断揭示embedding空间中的各种社会偏见：
+We find that the answer is yes, with important caveats. Across five experiments spanning Chinese and English, covering nearly 250,000 individuals and multiple embedding architectures, names associated with positive semantic concepts in embedding space are consistently overrepresented among high achievers. Grant-funded scientists have names closer to "wealth" and "wisdom" in Chinese embedding space. Higher-WEAT English names correlate with higher salaries. Senators, Nobel laureates, and billionaires all carry names that score above population baselines.
 
-- **Garg et al. (2018)** 在 *PNAS* 上展示了word embeddings如何编码了过去100年的性别和种族刻板印象，并且这些偏见的时间演变与社会态度调查数据高度吻合。
-- **Bolukbasi et al. (2016)** 在 NeurIPS 上证明了"Man is to Computer Programmer as Woman is to Homemaker"这样的性别偏见在 Word2Vec 中是结构性的，并提出了去偏方法。
+But our most important finding is not the positive correlations — it is the discovery of what WEAT actually measures. A state-level analysis of U.S. baby names reveals that the wealthiest families often give their children names that score *low* on English WEAT, because those families belong to cultural communities (e.g., Orthodox Jewish communities in New York and New Jersey) whose naming conventions diverge from the English-language mainstream. This finding reframes the entire enterprise: what WEAT captures is not "inherent name quality" but *proximity to the cultural mainstream of the training data*. This is both a limitation of our method and, we argue, the most policy-relevant finding of the paper, because it is exactly this cultural-mainstream bias that propagates through downstream AI systems.
 
-这些研究共同建立了一个关键认识：**word embeddings不是中性的数学对象，它们是社会偏见的忠实镜像**。
-
-### 2.2 名字与社会结果的经济学研究
-
-经济学领域对"名字效应"的研究同样有深厚积累：
-
-- **Levitt & Fryer (2004)** 在 *Quarterly Journal of Economics* 上利用加州数百万出生记录，发现名字与教育程度、收入等结果之间存在显著的统计关联。关键的识别策略是同一家庭内的兄弟姐妹对比——控制家庭背景后，名字本身的"因果效应"大幅缩小。他们的结论是：名字更多地**反映**社会经济地位，而非**决定**社会经济地位。
-- **Gregory Clark (2014)** 在 *The Son Also Rises* 一书中追踪了800年的姓氏数据，发现社会流动性远低于人们的乐观预期——精英姓氏在几个世纪后仍然在顶层过度代表。名字（姓氏）在这里成为追踪代际社会流动的有力工具。
-
-### 2.3 名字 Embeddings 的专门研究
-
-- **Ye & Skiena (2019)** 在 KDD 上提出了从社交媒体大规模学习 name embeddings 的方法，证明名字的向量表示可以有效预测人口统计学特征（性别、种族、国籍），这既展示了embedding的强大能力，也暴露了它可能编码的敏感信息。
-
-### 2.4 中文命名的文化维度
-
-中文名字与英文名字有一个根本性的不同：**中文名字的每一个字本身就携带明确的语义**。
-
-"志远"、"明哲"、"嘉禾"——这些名字不需要通过训练语料库的统计关联来获得语义，它们字面上就是有意义的。这根植于中国数千年的命名传统：
-
-- **音韵学（Phonology）** 的传统强调名字的声韵和谐——平仄搭配、声调起伏。
-- **训诂学（Exegesis/Semantics）** 的传统关注字义的选择——典故出处、义蕴深浅。
-- **避讳（Taboo naming）** 制度体现了名字在政治权力结构中的敏感性。
-
-这意味着中文名字在word embedding中的语义表现有双重来源：一是字本身的固有语义（"智"天然靠近"智慧"），二是作为名字出现在语料库中时获得的社会性语义关联。这种双重性使得中文名字的WEAT分析尤为有趣。
+The narrative arc of this paper is thus: we set out to test whether name embeddings predict success; we found that they do; and then we discovered *why* — and the why reveals fundamental issues with embedding-based decision systems.
 
 ---
 
-## 3. 方法论
+## 2. Related Work
 
-### 3.1 WEAT 方法概述
+### 2.1 Bias in Word Embeddings
 
-**Word Embedding Association Test** 的核心思想简洁而优雅：
+Caliskan, Bryson, and Narayanan (2017) introduced the Word Embedding Association Test (WEAT), adapting the Implicit Association Test (IAT) from psychology to measure bias in embedding spaces. They demonstrated that embeddings trained on internet corpora reproduce human-like implicit biases — European-American names are associated with pleasantness, flowers with positivity, and so on — with effect sizes comparable to those observed in human subjects. Garg et al. (2018) extended this work diachronically, showing that word embeddings trained on text from different decades track the historical evolution of gender and ethnic stereotypes over 100 years, with embedding-derived bias measures correlating with contemporaneous social attitude surveys. Bolukbasi et al. (2016) demonstrated structural gender bias in Word2Vec ("man is to computer programmer as woman is to homemaker") and proposed geometric debiasing methods, establishing embedding fairness as a research program.
 
-给定两组**属性词**（如"富裕/贫穷"）和一个**目标词**（如一个名字），通过计算目标词与两组属性词的平均 cosine similarity 之差，来度量目标词对某一概念的"偏好"。
+### 2.2 Names and Socioeconomic Outcomes
 
-形式化表述：
+The economics literature on name effects is substantial. Levitt and Fryer (2004) analyzed millions of California birth records and found significant statistical associations between names and outcomes such as education and income. Their key identification strategy — sibling comparisons within families — showed that most of the association is driven by family background rather than the name itself. Clark (2014) traced surnames across 800 years of records in multiple countries, finding that elite surnames persist at the top of socioeconomic distributions far longer than standard models of social mobility predict, suggesting that names are powerful markers — though not necessarily causes — of social position.
 
-```
-s(w, A, B) = mean[cos(w, a) for a in A] - mean[cos(w, b) for b in B]
-```
+### 2.3 Name Embeddings
 
-其中 `w` 是目标名字的向量，`A` 是正面属性词集（如"富裕、成功、繁荣..."），`B` 是负面属性词集（如"贫穷、匮乏、潦倒..."），`cos` 是 cosine similarity。
+Ye and Skiena (2019) demonstrated that name embeddings learned from social media can predict demographic attributes (gender, ethnicity, nationality) with high accuracy, revealing both the power and the privacy risks of name representations in vector spaces.
 
-得分为正表示名字在向量空间中更靠近正面概念，得分为负则更靠近负面概念。
+### 2.4 Chinese Naming Culture
 
-### 3.2 评估维度
-
-我们设计了6个评估维度，每个维度包含8个正面属性词和8个负面属性词：
-
-| 维度 | 英文标签 | 正面属性词（示例） | 负面属性词（示例） |
-|------|----------|--------------------|--------------------|
-| 财富 | wealth | 富裕、成功、财富、繁荣... | 贫穷、贫困、匮乏、拮据... |
-| 智慧 | wisdom | 智慧、聪明、博学、睿智... | 愚蠢、愚昧、无知、笨拙... |
-| 幸福 | happiness | 幸福、快乐、美满、喜悦... | 痛苦、悲伤、不幸、苦难... |
-| 健康 | health | 健康、长寿、活力、强壮... | 疾病、虚弱、病痛、衰弱... |
-| 领导力 | leadership | 领袖、杰出、卓越、精英... | 平庸、庸碌、碌碌、渺小... |
-| 美感 | beauty | 美丽、优雅、端庄、秀美... | 丑陋、粗俗、庸俗、猥琐... |
-
-英文分析使用对应的英文属性词集（如 wealthy/poor, intelligent/stupid 等）。
-
-### 3.3 数据来源
-
-#### 中文分析
-
-- **词向量模型**：腾讯AI Lab中文词向量 (Tencent AI Lab Embedding)，200维，约143,000词汇表（轻量版），基于大规模中文语料训练。
-- **成功者名字**：来自 Chinese Gender Dataset (Shi & Tong, 2025, *Nature Scientific Data*) 中的政府基金获资助者（grantees）数据集，包含 **99,729** 个科学家/学者的名字。这些人通过了严格的学术评审，获得了国家级科研资金资助——我们将此作为"career success"的操作化定义。
-- **普通人名字**：来自 CCNC（Chinese Corpus of Name and Character）数据集，包含约 **365万** 普通人名字。我们从中随机抽取 **100,000** 个作为对照组（random seed=42，保证可复现）。
-
-#### 英文分析
-
-- **词向量模型**：GloVe (Stanford NLP)，300维，基于60亿token的语料库训练。
-- **名字来源**：美国社会安全局（SSA）婴儿名字数据库，涵盖了美国所有注册出生记录中的名字及其频率。
-
-### 3.4 中文名字的处理策略
-
-中文名字通常由1-2个汉字组成（不含姓氏）。我们的处理策略如下：
-
-1. 先尝试将完整名字（如"思琪"）作为整词在向量模型中查找。
-2. 如果整词不存在（在word2vec模型中很常见），则**逐字计算 WEAT 得分，取平均值**。
-
-例如，名字"思琪"的 wealth 维度得分 = mean(WEAT("思", wealth), WEAT("琪", wealth))。
-
-这一策略在中文语境下是合理的，因为中文名字的语义确实来自单个字的组合。
-
-### 3.5 统计检验
-
-对于成功者 vs 普通人的群组对比，我们使用：
-
-- **独立样本 t 检验**（Welch's t-test）检验两组均值差异的显著性
-- **Cohen's d** 作为效应量指标
-- 显著性阈值：p < 0.05 (*)，p < 0.01 (**)，p < 0.001 (***)
+Chinese names (名, *míng*) differ structurally from English names in a crucial respect: each character carries explicit semantic content. A name like 志远 (*zhìyuǎn*, "ambition-far") is semantically transparent in a way that "James" is not. This means Chinese name embeddings encode both the inherent lexical semantics of individual characters and the social associations of the name as a whole — a duality that makes Chinese names particularly interesting for WEAT analysis.
 
 ---
 
-## 4. 核心发现
+## 3. Method
 
-### 4.1 中文名字分析：成功者 vs 普通人
+### 3.1 WEAT Scoring
 
-这是本研究最核心的实证分析。我们将99,729位基金获资助者（科学家/学者）的名字与100,000位普通人的名字在embedding空间中进行了系统对比。
+Following Caliskan et al. (2017), we define the association score of a target word *w* with respect to two attribute sets *A* (positive) and *B* (negative) as:
 
-#### 综合得分（Composite Score）
+$$s(w, A, B) = \frac{1}{|A|} \sum_{a \in A} \cos(\vec{w}, \vec{a}) - \frac{1}{|B|} \sum_{b \in B} \cos(\vec{w}, \vec{b})$$
 
-| 指标 | 成功者 (Grantees) | 普通人 (General) |
-|------|-------------------|------------------|
-| 均值 | **0.026092** | **0.024107** |
-| 样本量 | 99,729 | 100,000 |
+where $\cos(\cdot, \cdot)$ denotes cosine similarity between embedding vectors. A positive score indicates that *w* is, on average, closer to the positive attribute set than to the negative attribute set in embedding space.
 
-**统计检验**：t = 18.76, p = 1.79 x 10^(-78), Cohen's d = 0.0923
+### 3.2 Semantic Dimensions
 
-这个结果在统计上是极度显著的——p值几乎为零，在近20万样本的规模下，这个差异不可能是随机波动。
+We evaluate names along six dimensions, each defined by a set of 8 positive and 8 negative attribute words:
 
-但要注意 Cohen's d = 0.0923。按照Cohen (1988)的标准，这是一个**小效应量**（small effect: d < 0.2）。换言之：差异真实存在，但个体层面的预测力很弱。
+| Dimension | Positive examples | Negative examples |
+|-----------|------------------|-------------------|
+| **Wealth** (财富) | wealthy, prosperous, affluent... | poor, impoverished, destitute... |
+| **Wisdom** (智慧) | intelligent, wise, brilliant... | foolish, ignorant, stupid... |
+| **Happiness** (幸福) | joyful, happy, content... | miserable, sorrowful, wretched... |
+| **Health** (健康) | healthy, vigorous, strong... | sick, frail, weak... |
+| **Leadership** (领导力) | leader, distinguished, elite... | mediocre, ordinary, insignificant... |
+| **Beauty** (美感) | beautiful, elegant, graceful... | ugly, vulgar, grotesque... |
 
-这本身就是一个有趣且重要的结论：**统计上极度显著，效应量上相当微小**——这正是"大数据悖论"的一个教科书般的例子。
+Chinese-language attribute sets use corresponding Chinese terms (e.g., 富裕/贫穷 for wealth, 智慧/愚蠢 for wisdom). The composite WEAT score for each name is the average across all six dimensions.
 
-#### 分维度分析
+### 3.3 Embedding Models
 
-以下是6个维度的逐一结果（差值 = 成功者均值 - 普通人均值）：
+**Chinese:** Tencent AI Lab Chinese Word Vectors (Song et al., 2018), 200 dimensions, approximately 143,000-token vocabulary (lite version). A total of 2,899 unique Chinese characters received WEAT scores via this model. Additionally, we employ chinese-macbert-base (Cui et al., 2020) as a BERT-based contextual embedding layer, scoring 3,000 characters on an RTX 5080 GPU.
 
-| 维度 | 差值 (Δ) | 方向 | p 值 | 解读 |
-|------|----------|------|------|------|
-| **wealth** (财富) | **+0.009087** | 成功者 > 普通人 | p ≈ 0 | 成功者名字更靠近"财富"概念 |
-| **wisdom** (智慧) | **+0.004644** | 成功者 > 普通人 | p ≈ 0 | 成功者名字更靠近"智慧"概念 |
-| **leadership** (领导力) | **+0.004645** | 成功者 > 普通人 | p ≈ 0 | 成功者名字更靠近"卓越"概念 |
-| **health** (健康) | **+0.000650** | 成功者 > 普通人 | p < 0.001 | 微弱差异 |
-| **happiness** (幸福) | **-0.001654** | 成功者 < 普通人 | p < 0.001 | 成功者名字反而离"幸福"更远 |
-| **beauty** (美感) | **-0.005459** | 成功者 < 普通人 | p ≈ 0 | 成功者名字反而离"美感"更远 |
+**English:** GloVe 6B 300d (Pennington et al., 2014), trained on 6 billion tokens from Wikipedia and Gigaword. A total of 29,842 English given names from SSA records were scored.
 
-#### 解读这幅语义画像
+### 3.4 Three-Layer Fusion for Chinese Names
 
-这六个维度的结果组合在一起，勾勒出了一幅非常有趣的画像：
+Chinese names require special handling because most two-character given names do not appear as whole tokens in Word2Vec vocabularies. We implement a three-layer scoring architecture:
 
-**在embedding空间中，成功者的名字更偏向"功业"维度（财富、智慧、卓越），更远离"感性"维度（幸福、美感）。**
+1. **Word2Vec character-average:** Compute the WEAT score for each character independently using the Tencent embeddings, then average across the characters of the name.
+2. **BERT contextual embedding:** Pass the full name through chinese-macbert-base and extract the pooled representation, then compute WEAT against attribute words embedded in the same space.
+3. **Whole-word matching:** For names that do appear as whole tokens in the vocabulary, compute WEAT directly on the whole-word vector.
 
-这与直觉高度吻合。想一想那些典型的"成功者名字"——"志远"、"明哲"、"建国"、"伟"、"强"——它们的语义指向的是抱负、能力、力量。而"幸福"和"美感"相关的字——"欣"、"悦"、"美"、"秀"——更多出现在寻求温馨、和谐的命名传统中，且更偏向女性名字。
+The three layers are fused via a weighted average. We note that the cosine similarity between character-average vectors and whole-word vectors is only 0.52 on average, indicating that these two representations capture substantially different information — justifying the multi-layer approach.
 
-考虑到基金获资助者中男性比例较高（科研领域的性别比例至今未完全均衡），"beauty"维度的负差值可能部分反映了性别构成的差异，而非纯粹的"成功"语义。
+### 3.5 Data Sources
 
-**"幸福"维度的负差值尤其值得深思。** 在中文命名文化中，直接追求"幸福"的名字（如"欢"、"乐"、"福"）往往被认为过于直白、缺乏文学性，而在学术精英的家庭中，命名可能更倾向于使用表达志向和学识的字。这里体现的可能是一种**阶层审美差异**——对名字"雅"与"俗"的不同标准。
+**Chinese grant recipients (成功者, "achievers"):** 99,729 scientists and scholars who received government research funding, drawn from the Chinese Gender Dataset (Shi & Tong, 2025, *Nature Scientific Data*). Receiving a competitive national grant serves as our operational definition of career achievement.
 
-### 4.2 英文名字分析：Popular vs Rare Names
+**Chinese general population (普通人, "general population"):** 100,000 names randomly sampled (seed = 42) from the CCNC (Chinese Corpus of Name and Character) dataset, comprising approximately 3.65 million name records. The top-10,000 names by frequency were used for frequency-based analyses.
 
-在英文名字分析中，我们将SSA（Social Security Administration）历史频率排名前500的名字与排名末500的名字进行对比，使用 GloVe 300d 词向量。
+**Chicago city employees:** 32,069 employees with publicly available names and annual salaries, obtained from the City of Chicago open data portal.
 
-#### Popular Names vs Rare Names（所有6个维度 p < 0.001）
+**Global elites:** Compiled from Wikidata and Forbes: U.S. Senators (n = 965), Nobel Laureates (n = 860), Oscar Winners (n = 125), Olympic Gold Medalists (n = 950), and Forbes Billionaires (n = 1,699).
 
-| 维度 | 差值 (Popular - Rare) |
-|------|----------------------|
-| **leadership** | **+0.07291** |
-| **beauty** | **+0.07103** |
-| **wisdom** | **+0.06355** |
-| **health** | **+0.03664** |
-| **wealth** | **+0.02894** |
-| **happiness** | **+0.00946** |
+**SSA baby names:** U.S. Social Security Administration baby name records, including state-level data for 2015–2024, linked to state median household income from the U.S. Census Bureau.
 
-这个结果可以这样理解：**在英文embedding空间中，流行名字在所有六个正面维度上都显著优于罕见名字。**
+### 3.6 Statistical Methods
 
-效应量远大于中文分析中的成功者/普通人对比（数量级差异约为10倍）。这可能因为我们比较的是极端组（Top 500 vs Bottom 500），也可能因为英文名字作为独立token在语料库中出现的频率更高，所以embedding编码了更多的社会性关联。
-
-#### 个别名字的 Composite Score
-
-一些高分名字：
-
-| 名字 | Composite Score |
-|------|----------------|
-| **Elizabeth** | **0.0949** |
-| **Victoria** | **0.0874** |
-| **Nova** | **0.0552** |
-| **Sophia** | **0.0512** |
-
-Elizabeth 和 Victoria 高居榜首并不令人意外——它们是英语世界中最具"贵族"和"权威"色彩的名字，与数百年的王室传统深度绑定。GloVe 模型从英文语料库中忠实地学到了这种关联。
-
-Nova（本项目名称的灵感来源之一）也取得了不错的成绩——这个名字在天文学中意为"新星"，语义上天然靠近"brilliant"、"extraordinary"等概念。
-
-Sophia（希腊语"智慧"）的得分印证了一个有趣的假设：**当一个名字本身就具有明确的正面语义时，这种语义会在embedding中被保留和放大**。
-
-### 4.3 跨语言对比的启示
-
-中英文分析的对比揭示了一个有趣的模式差异：
-
-- **中文**：成功者名字在"功业"维度上得分更高，在"感性"维度上反而更低。呈现出一种**选择性偏移**。
-- **英文**：流行名字在所有维度上都高于罕见名字。呈现出一种**全面性优势**。
-
-这可能反映了两种命名文化的根本差异。中文命名是一个高度有意的语义选择过程（每个字都有明确含义），而英文名字的语义联想更多来自历史使用者的社会地位——Elizabeth 的高分不是因为这个词本身的意思，而是因为历史上叫 Elizabeth 的人往往处于社会上层。
+Group comparisons use Welch's t-test with Cohen's d as the effect size measure. Continuous associations are reported as Pearson correlations. Classification performance is reported as area under the ROC curve (AUC) with standard deviation from 5-fold cross-validation. All reported p-values are two-tailed unless otherwise noted.
 
 ---
 
-## 5. 讨论：因果 vs 相关
+## 4. Experiments and Results
 
-### 5.1 名字不决定命运——但在AI里，它可能就是命运
+### 4.1 Experiment 1: Chinese Name-Achievement Association
 
-这必须被反复强调：**本研究发现的是相关性，不是因果性。**
+We compare the WEAT profiles of 99,729 grant recipients against 100,000 general-population names in the Tencent embedding space.
 
-成功者的名字在embedding空间中靠近"财富"和"智慧"，这并不意味着取一个靠近"财富"的名字就能变得富有。更合理的因果链条是：
+**Table 1.** WEAT dimension scores: grant recipients vs. general population (差值 = grantee mean − general mean).
 
-```
-父母的社会经济地位 → 命名偏好 → 名字选择
-                    ↓
-              → 教育资源 → 职业成就
-```
+| Dimension | Δ (difference) | Direction | p-value |
+|-----------|----------------|-----------|---------|
+| Wealth (财富) | +0.009 | Grantees > General | ≈ 0 |
+| Wisdom (智慧) | +0.005 | Grantees > General | ≈ 0 |
+| Leadership (领导力) | +0.005 | Grantees > General | ≈ 0 |
+| Health (健康) | +0.001 | Grantees > General | < 0.001 |
+| Happiness (幸福) | −0.002 | Grantees < General | < 0.001 |
+| Beauty (美感) | −0.005 | Grantees < General | ≈ 0 |
 
-名字和成就之间的相关性来自一个共同的原因——**家庭的社会经济地位**。教育程度高的父母倾向于选择承载文化抱负的名字（"志"、"哲"、"明"），同时也更有能力为孩子提供优质教育资源。Levitt & Fryer (2004) 的研究在控制家庭背景后发现名字本身的因果效应很小。
+The three-layer fusion model (Word2Vec character-average + BERT + whole-word) achieves an AUC of **0.748 ± 0.031** in distinguishing grantees from general-population names.
 
-Clark (2014) 的长时段姓氏研究也指向同一结论：名字是阶层的**标记**，而非阶层的**原因**。
+The dimension-level results reveal a striking pattern: grantees' names score higher on "achievement-oriented" dimensions (wealth, wisdom, leadership) but *lower* on "affective" dimensions (happiness, beauty). This is consistent with Chinese naming conventions (命名文化): scholarly families tend to choose characters connoting ambition and intellect (志 *zhì* "ambition," 哲 *zhé* "philosophy," 明 *míng* "brightness"), while characters associated with happiness (欢 *huān*, 乐 *lè*) and beauty (秀 *xiù*, 美 *měi*) are considered more colloquial and are disproportionately used in female names — relevant given the male skew among funded researchers.
 
-### 5.2 但是——在AI系统中，Embedding 就是因果通道
+### 4.2 Experiment 2: U.S. Salary Validation
 
-然而，当名字进入AI处理流水线时，相关性和因果性的区分变得模糊了。
+To test whether English-language WEAT scores correlate with a concrete economic outcome, we analyze 32,069 Chicago city employees with publicly available names and annual salaries, scoring first names using GloVe 6B 300d.
 
-考虑一个AI简历筛选系统的工作流程：
+**Table 2.** WEAT–salary associations (Chicago city employees).
 
-```
-申请人名字 → Tokenizer → Embedding Lookup → 输入到神经网络 → 评分/排名
-```
+| Metric | Value |
+|--------|-------|
+| Individual-level: all 6 dimensions vs. salary | p < 0.001 (all significant) |
+| Name-level Pearson r (names with ≥ 10 holders) | **0.345** (p ≈ 0) |
+| Top 25% WEAT vs. Bottom 25% WEAT salary gap | **+$9,702/year** |
 
-在这个流水线中，**embedding就是模型"看到"名字的唯一方式**。如果"Victoria"的embedding向量天然靠近"leadership"和"excellence"，而"Destiny"的embedding靠近完全不同的概念簇，那么即使这两个申请人的其他条件完全相同，模型也可能给出不同的评分。
+At the individual level, all six WEAT dimensions are significantly correlated with salary (p < 0.001). Aggregating to the name level (averaging salary across all employees sharing a given name, restricting to names held by at least 10 employees) yields a Pearson correlation of r = 0.345 between composite WEAT score and mean salary. The salary gap between the top and bottom WEAT quartiles — $9,702 per year — is economically meaningful, though we emphasize that this is an observational association, not a causal estimate.
 
-此时，embedding中的社会偏见不再只是被动的"镜像"——**它成为了一个主动的因果通道**。
+### 4.3 Experiment 3: Global Elite Name Analysis
 
-```
-原始社会偏见 → 训练语料库 → Word Embedding → AI决策系统 → 真实世界的结果
-```
+We score the first names of individuals in five elite categories using GloVe 6B 300d and compare against a baseline of 5,000 randomly sampled SSA names.
 
-这是一个完整的因果链，名字的embedding是其中的关键环节。
+**Table 3.** Mean WEAT composite scores by elite category.
 
-### 5.3 小效应量的大数据放大
+| Category | n | Mean WEAT | Δ vs. baseline | p-value |
+|----------|---|-----------|----------------|---------|
+| U.S. Senators | 965 | 0.064 | **+0.086** | ≈ 0 |
+| Oscar Winners | 125 | 0.057 | +0.079 | ≈ 0 |
+| Olympic Gold Medalists | 950 | 0.046 | +0.068 | ≈ 0 |
+| Nobel Laureates | 860 | 0.046 | +0.068 | ≈ 0 |
+| Forbes Billionaires | 1,699 | 0.042 | +0.063 | ≈ 0 |
+| SSA Baseline | 5,000 | −0.022 | — | — |
 
-我们的中文分析中，Cohen's d = 0.0923——一个微小的效应。但在AI系统的规模化应用中：
+All five elite categories score significantly above the population baseline, with U.S. Senators showing the largest gap (+0.086) and Forbes Billionaires the smallest (+0.063). The ordering is itself informative: senators — whose names are most deeply embedded in English-language political discourse — show the strongest association, while billionaires — a more internationally diverse group — show the weakest.
 
-- 一个招聘平台每天处理数百万份简历
-- 一个内容推荐系统每秒处理数万个用户画像
-- 一个信贷评估系统每年评价数百万申请
+### 4.4 Experiment 4: Self-Made vs. Inherited Billionaires
 
-当一个微小的偏差被乘以百万、千万甚至亿的量级，其累积效应就不再微小了。这是AI伦理中"scale amplification"的经典问题。
+The most common objection to name-outcome associations is that names merely proxy for family socioeconomic status (SES). To probe this, we exploit the `wealth.type` field in the Forbes billionaire dataset, which distinguishes self-made wealth from inherited wealth.
 
----
+**Table 4.** WEAT scores by wealth origin.
 
-## 6. 未来AI世界的含义
+| Group | n | Mean WEAT |
+|-------|---|-----------|
+| Self-made | 828 | **0.047** |
+| Inherited | 595 | **0.037** |
+| Difference | — | +0.010 (p = 5 × 10⁻⁶) |
 
-### 6.1 简历筛选（Resume Screening）
+If WEAT scores were purely an SES proxy, we would expect inherited billionaires — who come from wealthier families by definition — to score *higher*. Instead, the self-made group scores significantly higher (Δ = +0.010, p = 5 × 10⁻⁶). This finding rules out the simplest version of the SES-proxy hypothesis and suggests that WEAT captures something beyond parental wealth — plausibly, proximity to the English-language cultural mainstream from which self-made billionaires disproportionately emerge.
 
-许多企业已经在使用AI辅助的简历筛选系统。候选人的名字几乎必然经过embedding处理。我们的研究表明，名字的embedding可能编码了与工作能力无关的社会经济信号。
+### 4.5 Experiment 5: The Cultural Bias Discovery
 
-一些可能的应对：
-- 匿名化简历（blind resume）在初筛阶段隐去姓名
-- 对AI筛选系统进行name-fairness审计
-- 使用 debiased embeddings (Bolukbasi et al., 2016)
+This experiment constitutes our most important finding. We link SSA state-level baby name data (2015–2024) to state median household income from the U.S. Census Bureau, computing the average WEAT score of names given in each state-year cell and correlating it with state-level income.
 
-### 6.2 信用评分（Credit Scoring）
+**Expected result:** Wealthier states → higher-SES families → names with higher WEAT scores (positive correlation).
 
-虽然大多数正规的信用评分模型不直接使用名字作为特征，但在一些非传统金融（alternative lending）场景中，NLP模型可能处理包含名字的文本数据。名字中编码的社会经济信号可能间接影响信贷决策。
+**Actual result:**
 
-### 6.3 内容推荐（Content Recommendation）
+$$r = -0.127 \quad (p = 8.9 \times 10^{-16})$$
 
-社交平台的推荐算法需要处理用户名（username）和真实姓名。如果这些名字通过embedding被赋予了不同的语义色彩，它可能影响用户接收到的内容类型和质量。
+The correlation is *negative*. Wealthier states and communities tend to produce names with *lower* WEAT scores.
 
-### 6.4 大语言模型（LLM）中的名字偏见
+Inspection of the data reveals why. The names associated with the highest household incomes include: **Dovid, Yaakov, Shmuel, Yehuda** — names from Orthodox Jewish communities concentrated in New York and New Jersey, among the highest-income demographics in the United States. These names score *low* on English WEAT because they are distant from the English-language cultural mainstream on which GloVe was trained. The embedding model has not encountered "Yaakov" in the same linguistic contexts as "wealth" and "leadership"; instead, "Yaakov" occupies a region of embedding space associated with a specific cultural-religious community.
 
-最前沿的问题可能在大语言模型领域。当你在ChatGPT或Claude中输入一个名字时，模型对这个名字的"第一印象"会影响后续生成的内容。我们的 WEAT 分析本质上是在衡量这种第一印象的一个维度。
+This result fundamentally reframes what WEAT measures. It does not measure "inherent name quality" or even straightforward SES. It measures **proximity to the cultural mainstream of the training corpus**. Names that are common in English-language text — names borne by senators, CEOs, and protagonists of English novels — score high. Names from communities that are wealthy but culturally distinct from the English-language mainstream score low.
 
-本项目的实验2（LLM第一印象测试）通过直接查询LLM来验证这一假设——结果表明，LLM确实对不同名字表现出系统性的评价差异。
+This is simultaneously:
 
-### 6.5 一个思想实验
-
-想象2035年的世界：
-
-- AI面试官根据你的名字生成第一印象
-- AI导师根据你的名字调整教学风格
-- AI医生根据你的名字微调健康建议
-- AI法官根据你的名字影响量刑建议
-
-在这个世界中，名字在embedding空间中的位置不再只是一个学术好奇心——它是一个**数字身份的核心组件**。
-
-这不是科幻。这些场景的原型今天就在部署。
-
----
-
-## 7. 伦理声明
-
-### 7.1 本研究的目的
-
-本项目是一个**探索性、教育性**的研究。我们的目的是：
-
-1. **揭示**：让公众了解AI embedding中存在的名字偏见
-2. **量化**：用严谨的统计方法度量这些偏见的大小和方向
-3. **警示**：提醒AI系统的开发者和使用者注意名字作为偏差来源的可能性
-
-### 7.2 本研究不是什么
-
-- **我们不主张任何名字"更好"或"更差"。** WEAT得分反映的是embedding中编码的社会偏见，不是名字的客观价值。
-- **我们不为基于名字的歧视提供工具。** 恰恰相反，我们希望通过揭示这些偏见来帮助消除它们。
-- **我们不提供"取名建议"。** 虽然项目名称（Name Optimization）暗示了优化的方向，但我们更愿意将其理解为理解名字如何被AI系统处理的框架。
-
-### 7.3 数据使用
-
-- 所有名字数据来自公开数据集（Chinese Gender Dataset, SSA Baby Names）
-- 不涉及任何可识别个人的信息
-- 分析在群组层面（成功者组 vs 普通人组）进行，不针对特定个体
-
-### 7.4 潜在的误用风险
-
-我们认识到，这类研究的结果可能被不当使用——例如，用于强化而非消除基于名字的偏见。我们在此明确反对任何此类使用，并鼓励：
-
-- AI开发者对embedding中的名字偏见进行系统性审计
-- 政策制定者关注AI决策系统中的名字公平性
-- 研究者继续开发 debiasing 技术
+- **A limitation of our method:** WEAT cannot distinguish "good names" from "mainstream names."
+- **The most important finding for AI fairness:** It is exactly this cultural-mainstream bias that propagates through downstream NLP systems. A resume screening model trained on English text will implicitly favor names that are proximate to the English cultural mainstream — not because those names are "better," but because the embedding space is structured around that mainstream.
 
 ---
 
-## 8. 完整参考文献
+## 5. Discussion
 
-### 核心方法论
+### 5.1 What WEAT Actually Measures
 
-1. **Caliskan, A., Bryson, J. J., & Narayanan, A.** (2017). Semantics derived automatically from language corpora contain human-like biases. *Science*, 356(6334), 183-186. https://doi.org/10.1126/science.aal4230
+Our five experiments, taken together, paint a coherent picture. WEAT name scores correlate with real-world success (Experiments 1–4), but this correlation is driven by a specific mechanism: names that are proximate to the cultural mainstream of the training corpus tend to belong to individuals who are also proximate to that mainstream — and who, for reasons related to cultural capital, institutional access, and historical advantage, tend to achieve favorable outcomes.
 
-   > 提出 WEAT 方法，证明 word embeddings 编码了与 IAT 测试一致的人类偏见。本项目方法论的直接基础。
+The self-made vs. inherited finding (Experiment 4) strengthens this interpretation. Self-made billionaires — who are more likely to emerge from within the English-language cultural mainstream — carry names that score higher than inherited billionaires, who include a larger share of individuals from non-Anglophone cultural backgrounds. WEAT is measuring cultural proximity, not parental investment in name selection.
 
-2. **Garg, N., Schiebinger, L., Jurafsky, D., & Zou, J.** (2018). Word embeddings quantify 100 years of gender and ethnic stereotypes. *Proceedings of the National Academy of Sciences (PNAS)*, 115(16), E3635-E3644. https://doi.org/10.1073/pnas.1720347115
+The cultural bias discovery (Experiment 5) makes this explicit. The wealthiest naming communities in America — Orthodox Jewish families in the New York metropolitan area — produce names that score low on English WEAT because their naming conventions are rooted in Hebrew and Yiddish traditions rather than the English-language mainstream. The embedding model's "opinion" of these names reveals more about the model than about the names.
 
-   > 展示 word embeddings 如何编码了一个世纪的性别和种族刻板印象的时间演变。
+### 5.2 Implications for AI Fairness
 
-3. **Bolukbasi, T., Chang, K.-W., Zou, J., Saligrama, V., & Kalai, A.** (2016). Man is to Computer Programmer as Woman is to Homemaker? Debiasing Word Embeddings. *Advances in Neural Information Processing Systems (NeurIPS)*, 29.
+This finding has direct implications for deployed AI systems. Consider a resume screening model that processes applicant names through a GloVe or similar embedding layer. Our results suggest that such a system would:
 
-   > 证明 Word2Vec 中的性别偏见并提出去偏方法。对 embedding fairness 领域的奠基性工作。
+1. **Favor names from the cultural mainstream** — names like Elizabeth, Victoria, and James — not because these names signal competence, but because the training corpus associates them with positive contexts.
+2. **Penalize names from culturally distinct communities** — names like Yaakov, Shmuel, or Lakisha — not because of anything inherent to those names, but because the training corpus underrepresents or misrepresents those communities.
+3. **Do so invisibly** — because the bias is encoded in the geometry of embedding space, it is difficult to detect without targeted auditing of the kind we perform here.
 
-### 名字与社会结果
+This pattern extends beyond resume screening to credit scoring, content recommendation, and any NLP application where names pass through embedding layers. The bias is structural: it is not in any single parameter but in the relative positions of name vectors in high-dimensional space.
 
-4. **Levitt, S. D., & Fryer, R. G., Jr.** (2004). The causes and consequences of distinctively Black names. *The Quarterly Journal of Economics (QJE)*, 119(3), 767-805. https://doi.org/10.1162/0033553041502180
+### 5.3 The Chinese Dimension Pattern
 
-   > Freakonomics 名字研究的学术版。利用加州出生记录分析名字与社会经济结果的关系，结论：名字反映而非决定社会地位。
+The Chinese results add nuance. Unlike English, where WEAT scores show a "rising tide" pattern (higher-scoring names are higher on all dimensions), Chinese names show a *selective* pattern: grantees' names score higher on achievement dimensions but lower on affective dimensions. This likely reflects the semantic transparency of Chinese characters. When parents choose 志远 (*zhìyuǎn*, "far-reaching ambition") over 欢乐 (*huānlè*, "joyful happiness"), they are making an explicit semantic choice that is preserved in the embedding. The embedding is, in some sense, merely reading the label that the parents wrote.
 
-5. **Clark, G.** (2014). *The Son Also Rises: Surnames and the History of Social Mobility*. Princeton University Press.
+This cross-linguistic contrast suggests that the mechanism linking names to WEAT scores differs across languages. In Chinese, the dominant channel is *lexical semantics* (what the characters mean). In English, the dominant channel is *social association* (who has historically borne the name). Both channels produce measurable name-outcome correlations, but through different causal pathways.
 
-   > 追踪800年的姓氏数据，发现社会流动性远低于预期。名字作为代际阶层追踪的工具。
+### 5.4 Scale Amplification
 
-### 名字 Embeddings
+The effect sizes we report are modest. Cohen's d for the Chinese grantee analysis is 0.092 — small by conventional standards. The name-level salary correlation of r = 0.345 is moderate but far from deterministic. At the individual level, name WEAT is a weak predictor of any outcome.
 
-6. **Ye, J., & Skiena, S.** (2019). MediaRank: Computational Ranking of Online News Sources / Name Nationality Classification with Recurrent Neural Networks. *Proceedings of the 25th ACM SIGKDD International Conference on Knowledge Discovery & Data Mining (KDD)*.
-
-   > 从社交媒体学习 name embeddings，证明名字向量可预测人口统计学特征。
-
-### 数据来源
-
-7. **Shi, L., & Tong, C.** (2025). An Open Dataset of Chinese Name-to-Gender Associations. *Nature Scientific Data*.
-
-   > 大规模中文名字-性别数据集，包含基金获资助者（grantees）数据。本项目"成功者"数据的来源。
-
-8. **腾讯AI Lab中文词向量 (Tencent AI Lab Embedding for Chinese Words and Phrases)**. 约1200万词汇，200维。Song, Y., Shi, S., Li, J., & Zhang, H. (2018). Directional Skip-Gram: Explicitly Distinguishing Left and Right Context for Word Embeddings. *Proceedings of NAACL*.
-
-   > 本项目中文分析使用的词向量模型。
-
-9. **GloVe: Global Vectors for Word Representation**. Pennington, J., Socher, R., & Manning, C. D. (2014). *Proceedings of EMNLP*. https://nlp.stanford.edu/projects/glove/
-
-   > 本项目英文分析使用的词向量模型。6B tokens, 300维。
-
-10. **Social Security Administration (SSA) Baby Names**. https://www.ssa.gov/oact/babynames/
-
-    > 美国出生记录名字频率数据。本项目英文名字 Popular/Rare 分组的数据来源。
-
-### 背景文献
-
-11. **Cohen, J.** (1988). *Statistical Power Analysis for the Behavioral Sciences* (2nd ed.). Lawrence Erlbaum Associates.
-
-    > 效应量（Cohen's d）的标准参考。small: d=0.2, medium: d=0.5, large: d=0.8。
-
-12. **Greenwald, A. G., McGhee, D. E., & Schwartz, J. L. K.** (1998). Measuring individual differences in implicit cognition: The Implicit Association Test. *Journal of Personality and Social Psychology*, 74(6), 1464-1480.
-
-    > 内隐联想测试（IAT）——WEAT 方法的心理学原型。
+But AI systems operate at scale. A resume screening platform processes millions of applications per year. A credit scoring model evaluates millions of applicants. When a small bias is applied millions of times, the cumulative effect on the distribution of opportunities becomes substantial. This is the well-documented problem of *scale amplification* in algorithmic systems (Barocas & Selbst, 2016), and our results suggest that name-embedded bias is one channel through which it operates.
 
 ---
 
-## 附录：关键数字速查
+## 6. Limitations
 
-### 中文分析
+**Correlation, not causation.** All of our findings are observational associations. We cannot determine whether names *cause* outcomes, whether outcomes *cause* naming patterns (through intergenerational cultural transmission), or whether both are driven by unobserved confounders. The most parsimonious interpretation is that names and outcomes share common causes — family SES, cultural milieu, historical period — and that embeddings faithfully encode the resulting statistical patterns.
 
-| 指标 | 值 |
-|------|-----|
-| 成功者样本量 | 99,729（基金获资助者） |
-| 普通人样本量 | 100,000（CCNC随机抽样） |
-| 词向量模型 | 腾讯 AI Lab, 200d, ~143K vocab |
-| Composite 差值 | +0.001985 |
-| t 统计量 | 18.76 |
-| p 值 | 1.79 x 10^(-78) |
-| Cohen's d | 0.0923 |
-| 最大正差异维度 | wealth (+0.009087) |
-| 最大负差异维度 | beauty (-0.005459) |
+**Cultural specificity of embeddings.** Our English results are specific to GloVe trained on English-language web text. Different embedding models, trained on different corpora, would produce different WEAT scores. This is not a bug — it is the central finding — but it means our specific numerical results do not generalize to other embedding models without replication.
 
-### 英文分析
+**Temporal instability.** Embedding models are trained on fixed corpora and do not update in real time. The cultural associations captured by GloVe 6B (trained primarily on text from the 2000s and early 2010s) may not reflect current naming norms. Names that are gaining cultural prominence (e.g., through popular media) may be undervalued by older models.
 
-| 指标 | 值 |
-|------|-----|
-| 比较组 | SSA Top 500 vs Bottom 500 |
-| 词向量模型 | GloVe 6B, 300d |
-| 所有维度 | Popular > Rare (p < 0.001) |
-| 最大差异维度 | leadership (+0.07291) |
-| 最高个体得分 | Elizabeth (0.0949) |
+**Attribute word selection.** The choice of positive and negative attribute words for each WEAT dimension involves researcher judgment. Different attribute sets could yield different results. We mitigate this by using six dimensions and reporting results across all of them, but the specific magnitudes are sensitive to attribute word choice.
+
+**Sample composition.** The Chinese grantee sample is skewed male and concentrated in STEM fields. The Chicago salary dataset covers government employees, not the full labor market. The elite samples are subject to survivorship bias and historical overrepresentation of certain demographics.
 
 ---
 
-## 补充发现：Ground Truth 验证
+## 7. Conclusion
 
-### A. 美国薪资验证 (芝加哥政府雇员, n=32,069)
+We set out to answer a simple question: do names in "favorable" embedding positions correlate with favorable real-world outcomes? Across five experiments, two languages, and nearly 250,000 individuals, the answer is yes. Chinese grant recipients carry names closer to "wealth" and "wisdom" in embedding space. English names with higher WEAT scores correspond to higher salaries, and the names of senators, Nobel laureates, and billionaires all score above population baselines. Self-made billionaires score higher than inherited billionaires, ruling out simple SES-proxy explanations.
 
-使用芝加哥市政府公开薪资数据（含真实姓名和年薪），验证英文名WEAT得分与真实收入的关联：
+But our most important contribution is the discovery of *what WEAT actually measures*. The negative correlation between family income and WEAT score at the state level — driven by high-income communities with culturally non-mainstream naming traditions — reveals that WEAT captures proximity to the cultural mainstream of the training corpus, not inherent name quality. Names like Yaakov and Shmuel score low not because they are "bad names" but because GloVe's training data does not associate them with the positive concepts that define the English-language cultural mainstream.
 
-| 指标 | 值 |
-|------|-----|
-| 个体级 Pearson r | +0.200 (p≈0) |
-| 名字级 Pearson r (≥10人的名字) | **+0.345** (p≈0) |
-| 分类 AUC (高薪 vs 低薪) | 0.609 |
-| Top 25% WEAT vs Bottom 25% 薪资差 | **+$9,702/年** |
+This finding has direct implications for AI fairness. Any system that processes names through embedding layers — resume screeners, credit models, recommendation engines, large language models — inherits this cultural-mainstream bias. The bias is structural, invisible without targeted auditing, and amplified by the scale at which AI systems operate. Our work provides both a method for detecting this bias (WEAT applied to name embeddings) and a framework for understanding what it represents (cultural proximity, not quality).
 
-### B. 全球精英名单验证
-
-从Wikidata和Forbes公开数据收集5类精英名单，与SSA随机名字(n=5000)对比：
-
-| 精英类别 | 样本数 | WEAT均值 | vs普通人差值 | 显著性 |
-|----------|--------|----------|------------|--------|
-| US Senators | 965 | 0.0643 | **+0.0862** | p≈0 |
-| Oscar Winners | 125 | 0.0569 | +0.0788 | p≈0 |
-| Olympic Gold | 950 | 0.0463 | +0.0682 | p≈0 |
-| Nobel Laureates | 860 | 0.0457 | +0.0676 | p≈0 |
-| Forbes Billionaires | 1,699 | 0.0416 | +0.0634 | p≈0 |
-| Chinese Entrepreneurs | 476 | 0.0227 | +0.0039 | p<0.001 |
-
-### C. 富一代 vs 富二代 (关键发现)
-
-利用Forbes亿万富翁数据中的 `wealth.type` 字段，区分白手起家者与财富继承者：
-
-| 组别 | 样本 | WEAT均值 |
-|------|------|----------|
-| **白手起家 (Self-made)** | 828 | **0.0473** |
-| **继承财富 (Inherited)** | 595 | **0.0374** |
-| 差异 | — | **+0.0099 (p=5×10⁻⁶)** |
-
-**解读：** 白手起家的亿万富翁，其名字在向量空间中的得分显著高于继承者。这排除了"名字仅仅是家庭SES的proxy"这一最简单的解释——如果名字只反映家庭背景，继承者（来自更富有的家庭）应该得分更高。实际相反的结果提示，WEAT得分捕获的可能包含：(1) 文化圈效应（白手起家者多来自英语主流文化）；(2) GloVe embedding的英语中心偏见；(3) 名字与社会流动性之间更复杂的交互作用。
+Names do occupy systematically different positions in embedding space, and those positions correlate with real-world outcomes. But what we are measuring is not the destiny encoded in a name — it is the cultural geography of the training corpus, projected onto the space of human identities. In an era of pervasive AI systems, that projection has consequences.
 
 ---
 
-*本报告基于 How AI Sees Your Name 项目的计算分析结果撰写。所有数值均为实际计算结果，代码和数据处理流程见项目 `scripts/` 目录。*
+## 8. Technical Appendix
 
-*最后更新：2026年3月*
+**Table A1.** Embedding model specifications and coverage.
+
+| Model | Dimensions | Names/Characters Scored | Application |
+|-------|-----------|------------------------|-------------|
+| Tencent AI Lab Word Vectors | 200 | 2,899 Chinese characters | Experiment 1 |
+| chinese-macbert-base (BERT) | 768 | 3,000 Chinese characters | Experiment 1 |
+| GloVe 6B | 300 | 29,842 English names | Experiments 2–5 |
+
+**Table A2.** Chinese three-layer fusion performance.
+
+| Layer | Description | Standalone AUC |
+|-------|-------------|---------------|
+| Word2Vec char-avg | Character-level WEAT averaged over name | — |
+| BERT | Contextual embedding from macbert-base | — |
+| Whole-word | Direct lookup of full name in vocabulary | — |
+| **Three-layer fusion** | **Weighted combination** | **0.748 ± 0.031** |
+
+Note: Whole-word vs. character-average cosine similarity = 0.52 on average, confirming that these representations capture substantially different information.
+
+**Table A3.** Experiment 5 detail: SSA state-level WEAT × income.
+
+| Statistic | Value |
+|-----------|-------|
+| Correlation (r) | −0.127 |
+| p-value | 8.9 × 10⁻¹⁶ |
+| Period | 2015–2024 |
+| Highest-income names (low WEAT) | Dovid, Yaakov, Shmuel, Yehuda |
+| Interpretation | WEAT measures cultural-mainstream proximity |
+
+---
+
+## References
+
+Barocas, S., & Selbst, A. D. (2016). Big data's disparate impact. *California Law Review*, 104(3), 671–732.
+
+Bolukbasi, T., Chang, K.-W., Zou, J., Saligrama, V., & Kalai, A. (2016). Man is to computer programmer as woman is to homemaker? Debiasing word embeddings. *Advances in Neural Information Processing Systems (NeurIPS)*, 29.
+
+Caliskan, A., Bryson, J. J., & Narayanan, A. (2017). Semantics derived automatically from language corpora contain human-like biases. *Science*, 356(6334), 183–186.
+
+Clark, G. (2014). *The Son Also Rises: Surnames and the History of Social Mobility*. Princeton University Press.
+
+Cohen, J. (1988). *Statistical Power Analysis for the Behavioral Sciences* (2nd ed.). Lawrence Erlbaum Associates.
+
+Cui, Y., Che, W., Liu, T., Qin, B., Wang, S., & Hu, G. (2020). Revisiting pre-trained models for Chinese natural language processing. *Findings of EMNLP 2020*, 657–668.
+
+Garg, N., Schiebinger, L., Jurafsky, D., & Zou, J. (2018). Word embeddings quantify 100 years of gender and ethnic stereotypes. *Proceedings of the National Academy of Sciences*, 115(16), E3635–E3644.
+
+Greenwald, A. G., McGhee, D. E., & Schwartz, J. L. K. (1998). Measuring individual differences in implicit cognition: The Implicit Association Test. *Journal of Personality and Social Psychology*, 74(6), 1464–1480.
+
+Levitt, S. D., & Fryer, R. G., Jr. (2004). The causes and consequences of distinctively Black names. *The Quarterly Journal of Economics*, 119(3), 767–805.
+
+Pennington, J., Socher, R., & Manning, C. D. (2014). GloVe: Global vectors for word representation. *Proceedings of EMNLP*, 1532–1543.
+
+Shi, L., & Tong, C. (2025). An open dataset of Chinese name-to-gender associations. *Nature Scientific Data*.
+
+Song, Y., Shi, S., Li, J., & Zhang, H. (2018). Directional skip-gram: Explicitly distinguishing left and right context for word embeddings. *Proceedings of NAACL*, 175–180.
+
+Ye, J., & Skiena, S. (2019). MediaRank: Computational ranking of online news sources. *Proceedings of the 25th ACM SIGKDD International Conference on Knowledge Discovery & Data Mining*.
