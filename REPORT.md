@@ -126,6 +126,8 @@ We compare the WEAT profiles of 99,729 grant recipients against 100,000 general-
 
 The three-layer fusion model (Word2Vec character-average + BERT + whole-word) achieves an AUC of **0.748 ± 0.031** in distinguishing grantees from general-population names.
 
+![Fig 1](results/fig1_cn_achievement.png)
+
 The dimension-level results reveal a striking pattern: grantees' names score higher on "achievement-oriented" dimensions (wealth, wisdom, leadership) but *lower* on "affective" dimensions (happiness, beauty). This is consistent with Chinese naming conventions (命名文化): scholarly families tend to choose characters connoting ambition and intellect (志 *zhì* "ambition," 哲 *zhé* "philosophy," 明 *míng* "brightness"), while characters associated with happiness (欢 *huān*, 乐 *lè*) and beauty (秀 *xiù*, 美 *měi*) are considered more colloquial and are disproportionately used in female names — relevant given the male skew among funded researchers.
 
 ### 4.2 Experiment 2: U.S. Salary Validation
@@ -157,6 +159,8 @@ We score the first names of individuals in five elite categories using GloVe 6B 
 | Forbes Billionaires | 1,699 | 0.042 | +0.063 | ≈ 0 |
 | SSA Baseline | 5,000 | −0.022 | — | — |
 
+![Fig 2](results/fig2_elite_comparison.png)
+
 All five elite categories score significantly above the population baseline, with U.S. Senators showing the largest gap (+0.086) and Forbes Billionaires the smallest (+0.063). The ordering is itself informative: senators — whose names are most deeply embedded in English-language political discourse — show the strongest association, while billionaires — a more internationally diverse group — show the weakest.
 
 ### 4.4 Experiment 4: Self-Made vs. Inherited Billionaires
@@ -171,6 +175,8 @@ The most common objection to name-outcome associations is that names merely prox
 | Inherited | 595 | **0.037** |
 | Difference | — | +0.010 (p = 5 × 10⁻⁶) |
 
+![Fig 3](results/fig3_selfmade_vs_inherited.png)
+
 If WEAT scores were purely an SES proxy, we would expect inherited billionaires — who come from wealthier families by definition — to score *higher*. Instead, the self-made group scores significantly higher (Δ = +0.010, p = 5 × 10⁻⁶). This finding rules out the simplest version of the SES-proxy hypothesis and suggests that WEAT captures something beyond parental wealth — plausibly, proximity to the English-language cultural mainstream from which self-made billionaires disproportionately emerge.
 
 ### 4.5 Experiment 5: The Cultural Bias Discovery
@@ -182,6 +188,8 @@ This experiment constitutes our most important finding. We link SSA state-level 
 **Actual result:**
 
 $$r = -0.127 \quad (p = 8.9 \times 10^{-16})$$
+
+![Fig 4](results/fig4_cultural_bias.png)
 
 The correlation is *negative*. Wealthier states and communities tend to produce names with *lower* WEAT scores.
 
@@ -195,6 +203,10 @@ This is simultaneously:
 - **The most important finding for AI fairness:** It is exactly this cultural-mainstream bias that propagates through downstream NLP systems. A resume screening model trained on English text will implicitly favor names that are proximate to the English cultural mainstream — not because those names are "better," but because the embedding space is structured around that mainstream.
 
 ---
+
+![Fig 5](results/fig5_controlled_robustness.png)
+
+![Fig 6](results/fig6_summary.png)
 
 ## 5. Discussion
 

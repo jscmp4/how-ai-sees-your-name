@@ -24,11 +24,11 @@ data/raw/
 *.h5
 *.hdf5
 
-# Results (regenerable)
+# Results (regenerable, but figures needed for paper)
 results/*.csv
-results/*.png
 results/*.html
 !results/.gitkeep
+!results/fig*.png
 
 # Jupyter
 .ipynb_checkpoints/
