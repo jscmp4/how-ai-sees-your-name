@@ -800,34 +800,55 @@ def page_xray():
     st.markdown(desc)
 
 
-def page_pk():
-    """页面2: 名字PK"""
+def _resolve_name_scores(name: str):
+    """自动检测语言，返回WEAT得分。支持中英文 + 实时fallback。"""
+    if not name:
+        return None
+    # 英文
+    if all(c.isascii() for c in name) and name.strip().isalpha():
+        en_scores = load_en_scores()
+        for v in [name, name.capitalize(), name.lower(), name.title()]:
+            if v in en_scores:
+                return {d: en_scores[v].get(d, 0) for d in DIM_KEYS}
+        # realtime
+        rt = compute_en_realtime(name)
+        return {d: rt["scores"].get(d, 0) for d in DIM_KEYS} if rt else None
+    # 中文
     char_scores = load_char_scores()
+    result = get_name_scores(name, char_scores)
+    if result:
+        return result
+    # realtime
+    rt = compute_zh_realtime(name)
+    return {d: rt["scores"].get(d, 0) for d in DIM_KEYS} if rt else None
 
+
+def page_pk():
+    """页面2: 名字PK — 支持中英文任意组合"""
     st.markdown("### ⚔️ 名字 PK")
-    st.caption("两个名字正面对决，看谁在向量空间中更占优势")
+    st.caption("两个名字正面对决 — 中文、英文、甚至中英混合对比都可以")
 
     col1, col_vs, col2 = st.columns([5, 1, 5])
     with col1:
-        name_a = st.text_input("名字 A", placeholder="例：思琪", key="pk_a")
+        name_a = st.text_input("Name A", placeholder="Sophia / 思琪", key="pk_a")
     with col_vs:
         st.markdown("<div style='text-align:center; padding-top:1.8rem; font-size:1.5rem; color:#666'>VS</div>",
                      unsafe_allow_html=True)
     with col2:
-        name_b = st.text_input("名字 B", placeholder="例：梓涵", key="pk_b")
+        name_b = st.text_input("Name B", placeholder="Nova / 梓涵", key="pk_b")
 
     if not name_a or not name_b:
-        st.info("请输入两个名字开始对比")
+        st.info("Enter two names to compare (Chinese, English, or mix)")
         return
 
-    scores_a = get_name_scores(name_a, char_scores)
-    scores_b = get_name_scores(name_b, char_scores)
+    scores_a = _resolve_name_scores(name_a)
+    scores_b = _resolve_name_scores(name_b)
 
     if not scores_a:
-        st.error(f"「{name_a}」中的字不在分析范围内")
+        st.error(f'"{name_a}" could not be resolved in any model')
         return
     if not scores_b:
-        st.error(f"「{name_b}」中的字不在分析范围内")
+        st.error(f'"{name_b}" could not be resolved in any model')
         return
 
     # ── 综合得分对比 ──
@@ -1251,11 +1272,18 @@ def page_english():
 
 
 def page_success():
-    """页面: 名运分析"""
+    """页面: 名运分析 (中英文切换)"""
+    st.markdown("### 📊 名运关联分析")
+
+    lang = st.radio("Data Source", ["🇨🇳 中国 (科学家 vs 普通人)", "🇺🇸 USA (Salary + Elites)"],
+                    horizontal=True, key="success_lang")
+
+    if "USA" in lang:
+        _success_en()
+        return
+
     analysis = load_success_analysis()
     char_scores = load_char_scores()
-
-    st.markdown("### 📊 名运关联分析")
     st.caption("名字的向量空间位置，与现实世界的成就是否相关？")
 
     if not analysis:
@@ -1432,12 +1460,91 @@ def _save_env(anthropic_key: str, openai_key: str):
         f.write("\n".join(lines) + "\n")
 
 
+def _success_en():
+    """English success analysis: salary + elite + self-made vs inherited."""
+    import json as _json
+
+    val_path = DATA_DIR / "validation_results.json"
+    ctrl_path = DATA_DIR / "controlled_validation.json"
+    if not val_path.exists():
+        st.warning("Run `python scripts/run_validation.py` first.")
+        return
+
+    with open(val_path, encoding="utf-8") as f:
+        val = _json.load(f)
+
+    st.caption("Do names in favorable embedding positions correlate with real-world outcomes?")
+
+    # Chicago salary
+    us = val.get("us_salary_validation", {})
+    if "name_level_pearson_r" in us:
+        st.markdown("""
+        <div class="score-card" style="text-align:left; padding:1.5rem">
+        <h4 style="margin-top:0">Chicago City Employees (n=32,069)</h4>
+        <p>Name-level WEAT × salary correlation: <b style="color:#00d4ff">r = {r}</b></p>
+        <p>Top 25% WEAT names earn <b style="color:#00ff88">$9,702/year more</b> than Bottom 25%</p>
+        </div>
+        """.format(r=us["name_level_pearson_r"]), unsafe_allow_html=True)
+
+    # Elite comparison
+    elite = val.get("elite_validation", {}).get("categories", {})
+    if elite:
+        st.markdown("#### Global Elite vs Random Names")
+        rows = []
+        for cat in ["US Senators", "Oscar Winners", "Olympic Gold", "Nobel Laureates", "Billionaires"]:
+            if cat in elite:
+                d = elite[cat]
+                rows.append({"Category": cat, "n": d["n"],
+                             "WEAT vs Random": f"+{d['diff_vs_control']:.3f}",
+                             "Significant": "Yes (p<0.001)"})
+        if rows:
+            st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
+
+    # Self-made vs inherited
+    sm = val.get("selfmade_vs_inherited", {}).get("selfmade_vs_inherited", {})
+    if sm:
+        st.markdown("#### Self-Made vs Inherited Billionaires")
+        c1, c2, c3 = st.columns(3)
+        with c1:
+            st.metric("Self-Made", f"{sm['selfmade_mean']:.4f}", delta=f"+{sm['diff']:.4f}")
+        with c2:
+            st.metric("Inherited", f"{sm['inherited_mean']:.4f}")
+        with c3:
+            st.metric("p-value", f"{sm['p']:.1e}")
+
+    # Controlled results
+    if ctrl_path.exists():
+        with open(ctrl_path, encoding="utf-8") as f:
+            ctrl = _json.load(f)
+        ch = ctrl.get("chicago_salary", {})
+        st.markdown("#### After Controlling for Cultural Background")
+        st.markdown(f"""
+        - Raw correlation: r = {ch.get('raw_r', 'N/A')}
+        - Double-partial (culture removed): **r = {ch.get('double_partial_r', 'N/A')}**
+        - ~85% of the effect is **independent of cultural background**
+        """)
+        wt = ch.get("within_tier", {})
+        if wt:
+            rows = []
+            for tier, d in wt.items():
+                rows.append({"Cultural Tier": tier.replace("_", " ").title(),
+                             "n": d["n"], "r (WEAT~Salary)": d["r"],
+                             "Significant": "Yes" if d["p"] < 0.001 else "No"})
+            st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
+
+
 def page_generator():
-    """页面: 名字生成器"""
+    """页面: 名字生成器 (中英文)"""
+    st.markdown("### ✨ 名字生成器")
+
+    lang = st.radio("Language", ["🇨🇳 中文名", "🇺🇸 English Name"], horizontal=True, key="gen_lang")
+
+    if "English" in lang:
+        _generator_en()
+        return
+
     char_scores = load_char_scores()
     freq_zh = load_freq_zh()
-
-    st.markdown("### ✨ 名字生成器")
     st.caption("设定你想要的维度偏好，自动从字库中组合最优名字")
 
     st.markdown("#### 调整维度权重")
@@ -1533,6 +1640,69 @@ def page_generator():
                 st.plotly_chart(fig, use_container_width=True)
 
 
+def _generator_en():
+    """English name generator — find top-scoring names from SSA database."""
+    en_scores = load_en_scores()
+    if not en_scores:
+        st.warning("English scores not found.")
+        return
+
+    st.caption("Set your dimension preferences, find the highest-scoring English names")
+
+    weights = {}
+    cols = st.columns(3)
+    for i, dim in enumerate(DIM_KEYS):
+        info = DIMENSIONS[dim]
+        with cols[i % 3]:
+            weights[dim] = st.slider(f"{info['icon']} {info['label']}",
+                                     0.0, 1.0, 0.5, 0.1, key=f"gen_en_w_{dim}")
+
+    col1, col2 = st.columns(2)
+    with col1:
+        min_pop = st.number_input("Min SSA births", 100, 500000, 5000, step=1000, key="gen_en_pop")
+    with col2:
+        top_n = st.slider("Show top N", 10, 50, 20, key="gen_en_n")
+
+    if st.button("🎲 Find Best Names", type="primary", use_container_width=True, key="gen_en_btn"):
+        # 加权打分
+        results = []
+        for name, s in en_scores.items():
+            if s.get("frequency", 0) < min_pop:
+                continue
+            w_score = sum(s.get(d, 0) * weights.get(d, 0.5) for d in DIM_KEYS)
+            w_total = sum(weights.get(d, 0.5) for d in DIM_KEYS)
+            results.append((name, w_score / w_total if w_total > 0 else 0, s.get("frequency", 0)))
+
+        results.sort(key=lambda x: x[1], reverse=True)
+
+        st.markdown("---")
+        st.markdown(f"#### 🏆 Top {top_n} English Names")
+
+        rows = []
+        for rank, (name, score, freq) in enumerate(results[:top_n], 1):
+            s = en_scores[name]
+            row = {"#": rank, "Name": name}
+            for dim in DIM_KEYS:
+                row[DIMENSIONS[dim]["icon"]] = int(raw_to_percentile(s.get(dim, 0), dim))
+            row["Score"] = int(raw_to_percentile(s.get("composite", 0), "composite"))
+            row["Popularity"] = f"{freq:,}"
+            rows.append(row)
+
+        st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
+
+        # Top 3 雷达图
+        if results:
+            top3 = results[:3]
+            traces = []
+            colors = ["#00d4ff", "#da70d6", "#ffd700"]
+            for i, (name, _, _) in enumerate(top3):
+                s = en_scores[name]
+                dim_s = {d: s.get(d, 0) for d in DIM_KEYS}
+                traces.append(make_radar(name, dim_s, color=colors[i], fill_opacity=0.15))
+            fig = make_radar_figure(traces, title="Top 3 Comparison")
+            st.plotly_chart(fig, use_container_width=True)
+
+
 def sidebar_settings():
     """侧边栏设置面板：API密钥管理。"""
     with st.sidebar:
@@ -1602,10 +1772,9 @@ def main():
     sidebar_settings()
 
     # 导航
-    tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([
+    tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
         "🔬 名字X光",
         "⚔️ 名字PK",
-        "🌍 English",
         "📊 名运分析",
         "✨ 名字生成",
         "🏆 排行榜",
@@ -1617,14 +1786,12 @@ def main():
     with tab2:
         page_pk()
     with tab3:
-        page_english()
-    with tab4:
         page_success()
-    with tab5:
+    with tab4:
         page_generator()
-    with tab6:
+    with tab5:
         page_leaderboard()
-    with tab7:
+    with tab6:
         page_about()
 
 
