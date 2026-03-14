@@ -1,0 +1,663 @@
+{
+  "dimensions": {
+    "wealth": {
+      "grantee_mean": 0.04741,
+      "grantee_std": 0.035268,
+      "general_mean": 0.038323,
+      "general_std": 0.036434,
+      "diff": 0.009087,
+      "t_stat": 51.5075,
+      "p_value": 0.0,
+      "cohens_d": 0.2534,
+      "n_grantee": 83428,
+      "n_general": 81766
+    },
+    "wisdom": {
+      "grantee_mean": 0.034269,
+      "grantee_std": 0.028126,
+      "general_mean": 0.029625,
+      "general_std": 0.02934,
+      "diff": 0.004644,
+      "t_stat": 32.8445,
+      "p_value": 7.904324899408347e-236,
+      "cohens_d": 0.1616,
+      "n_grantee": 83428,
+      "n_general": 81766
+    },
+    "happiness": {
+      "grantee_mean": 0.009172,
+      "grantee_std": 0.02758,
+      "general_mean": 0.010826,
+      "general_std": 0.032581,
+      "diff": -0.001654,
+      "t_stat": -11.1459,
+      "p_value": 7.679246743261254e-29,
+      "cohens_d": -0.0548,
+      "n_grantee": 83428,
+      "n_general": 81766
+    },
+    "health": {
+      "grantee_mean": 0.016787,
+      "grantee_std": 0.028769,
+      "general_mean": 0.016136,
+      "general_std": 0.030471,
+      "diff": 0.00065,
+      "t_stat": 4.4606,
+      "p_value": 8.177867015952493e-06,
+      "cohens_d": 0.0219,
+      "n_grantee": 83428,
+      "n_general": 81766
+    },
+    "leadership": {
+      "grantee_mean": 0.010463,
+      "grantee_std": 0.038493,
+      "general_mean": 0.005818,
+      "general_std": 0.038898,
+      "diff": 0.004645,
+      "t_stat": 24.3959,
+      "p_value": 3.232585771430772e-131,
+      "cohens_d": 0.12,
+      "n_grantee": 83428,
+      "n_general": 81766
+    },
+    "beauty": {
+      "grantee_mean": 0.038452,
+      "grantee_std": 0.045651,
+      "general_mean": 0.043911,
+      "general_std": 0.047032,
+      "diff": -0.005459,
+      "t_stat": -23.9389,
+      "p_value": 1.982703733306663e-126,
+      "cohens_d": -0.1178,
+      "n_grantee": 83428,
+      "n_general": 81766
+    }
+  },
+  "composite": {
+    "grantee_mean": 0.026092,
+    "general_mean": 0.024107,
+    "diff": 0.001986,
+    "t_stat": 18.7642,
+    "p_value": 1.7887418033124317e-78,
+    "cohens_d": 0.0923,
+    "n_grantee": 83428,
+    "n_general": 81766
+  },
+  "meta": {
+    "grantee_source": "Chinese Gender Dataset - grantees.csv (基金获资助者/科学家)",
+    "general_source": "CCNC dataset - train.csv (普通人名字)",
+    "n_grantee_total": 99729,
+    "n_general_total": 100000
+  },
+  "top_grantee_chars": [
+    {
+      "char": "华",
+      "freq": 3310,
+      "scores": {
+        "wealth": 0.102182,
+        "wisdom": 0.058146,
+        "happiness": 0.000247,
+        "health": 0.041779,
+        "leadership": 0.084273,
+        "beauty": 0.088027,
+        "composite": 0.062442
+      }
+    },
+    {
+      "char": "明",
+      "freq": 2833,
+      "scores": {
+        "wealth": 0.085936,
+        "wisdom": 0.027757,
+        "happiness": -0.008928,
+        "health": -0.013301,
+        "leadership": 0.004656,
+        "beauty": 0.040355,
+        "composite": 0.022746
+      }
+    },
+    {
+      "char": "文",
+      "freq": 2584,
+      "scores": {
+        "wealth": 0.052922,
+        "wisdom": 0.035349,
+        "happiness": -0.006828,
+        "health": -0.000824,
+        "leadership": -0.051147,
+        "beauty": 0.065131,
+        "composite": 0.015767
+      }
+    },
+    {
+      "char": "建",
+      "freq": 2452,
+      "scores": {
+        "wealth": 0.089448,
+        "wisdom": 0.079676,
+        "happiness": 0.034758,
+        "health": 0.03271,
+        "leadership": 0.030542,
+        "beauty": 0.047714,
+        "composite": 0.052475
+      }
+    },
+    {
+      "char": "平",
+      "freq": 2325,
+      "scores": {
+        "wealth": 0.035317,
+        "wisdom": 0.017494,
+        "happiness": -0.011155,
+        "health": -0.022219,
+        "leadership": -0.033646,
+        "beauty": 0.040257,
+        "composite": 0.004341
+      }
+    },
+    {
+      "char": "军",
+      "freq": 2284
+    },
+    {
+      "char": "国",
+      "freq": 2246
+    },
+    {
+      "char": "志",
+      "freq": 2109,
+      "scores": {
+        "wealth": 0.034318,
+        "wisdom": 0.081467,
+        "happiness": -0.010522,
+        "health": 0.03,
+        "leadership": 0.028845,
+        "beauty": 0.00108,
+        "composite": 0.027531
+      }
+    },
+    {
+      "char": "晓",
+      "freq": 2005,
+      "scores": {
+        "wealth": 0.000134,
+        "wisdom": 0.077038,
+        "happiness": -0.027531,
+        "health": -0.003367,
+        "leadership": 0.005637,
+        "beauty": 0.064765,
+        "composite": 0.019446
+      }
+    },
+    {
+      "char": "伟",
+      "freq": 1639
+    },
+    {
+      "char": "红",
+      "freq": 1596,
+      "scores": {
+        "wealth": 0.040293,
+        "wisdom": -0.005328,
+        "happiness": 0.027148,
+        "health": 0.00648,
+        "leadership": -0.020811,
+        "beauty": 0.046651,
+        "composite": 0.015739
+      }
+    },
+    {
+      "char": "海",
+      "freq": 1588,
+      "scores": {
+        "wealth": 0.085307,
+        "wisdom": -0.005349,
+        "happiness": -0.002679,
+        "health": 0.021611,
+        "leadership": -0.006095,
+        "beauty": 0.079384,
+        "composite": 0.028696
+      }
+    },
+    {
+      "char": "东",
+      "freq": 1586,
+      "scores": {
+        "wealth": 0.104651,
+        "wisdom": 0.041735,
+        "happiness": 0.014808,
+        "health": 0.042181,
+        "leadership": 0.070627,
+        "beauty": 0.042757,
+        "composite": 0.052793
+      }
+    },
+    {
+      "char": "新",
+      "freq": 1560,
+      "scores": {
+        "wealth": 0.090359,
+        "wisdom": 0.076496,
+        "happiness": 0.074327,
+        "health": 0.086709,
+        "leadership": 0.086136,
+        "beauty": 0.058187,
+        "composite": 0.078702
+      }
+    },
+    {
+      "char": "林",
+      "freq": 1471,
+      "scores": {
+        "wealth": 0.043483,
+        "wisdom": 0.030592,
+        "happiness": 0.016857,
+        "health": 0.039175,
+        "leadership": 0.018211,
+        "beauty": 0.103487,
+        "composite": 0.041967
+      }
+    },
+    {
+      "char": "永",
+      "freq": 1469
+    },
+    {
+      "char": "春",
+      "freq": 1450,
+      "scores": {
+        "wealth": 0.057089,
+        "wisdom": 0.050243,
+        "happiness": 0.012176,
+        "health": 0.020908,
+        "leadership": -0.042824,
+        "beauty": 0.145931,
+        "composite": 0.040587
+      }
+    },
+    {
+      "char": "玉",
+      "freq": 1356,
+      "scores": {
+        "wealth": 0.061631,
+        "wisdom": 0.018918,
+        "happiness": 0.006426,
+        "health": 0.02321,
+        "leadership": -0.01761,
+        "beauty": 0.125773,
+        "composite": 0.036391
+      }
+    },
+    {
+      "char": "生",
+      "freq": 1302,
+      "scores": {
+        "wealth": 0.026035,
+        "wisdom": 0.049043,
+        "happiness": -0.011037,
+        "health": -0.014794,
+        "leadership": -0.046806,
+        "beauty": 0.025575,
+        "composite": 0.004669
+      }
+    },
+    {
+      "char": "德",
+      "freq": 1283,
+      "scores": {
+        "wealth": 0.072796,
+        "wisdom": 0.076696,
+        "happiness": 0.01734,
+        "health": -0.009762,
+        "leadership": 0.112671,
+        "beauty": -0.033514,
+        "composite": 0.039371
+      }
+    },
+    {
+      "char": "强",
+      "freq": 1244,
+      "scores": {
+        "wealth": 0.06997,
+        "wisdom": 0.086348,
+        "happiness": -0.010132,
+        "health": -0.012164,
+        "leadership": 0.049926,
+        "beauty": -0.007876,
+        "composite": 0.029345
+      }
+    },
+    {
+      "char": "民",
+      "freq": 1183,
+      "scores": {
+        "wealth": 0.044732,
+        "wisdom": 0.002387,
+        "happiness": -0.007986,
+        "health": -0.006795,
+        "leadership": -0.021499,
+        "beauty": -0.037343,
+        "composite": -0.004417
+      }
+    },
+    {
+      "char": "光",
+      "freq": 1166,
+      "scores": {
+        "wealth": -0.006184,
+        "wisdom": 0.020929,
+        "happiness": 0.017035,
+        "health": 0.002414,
+        "leadership": -0.056445,
+        "beauty": 0.036818,
+        "composite": 0.002428
+      }
+    },
+    {
+      "char": "勇",
+      "freq": 1127,
+      "scores": {
+        "wealth": 0.005702,
+        "wisdom": 0.044329,
+        "happiness": -0.002322,
+        "health": 0.043952,
+        "leadership": 0.025373,
+        "beauty": -0.075839,
+        "composite": 0.006866
+      }
+    },
+    {
+      "char": "峰",
+      "freq": 1117,
+      "scores": {
+        "wealth": 0.088895,
+        "wisdom": 0.070791,
+        "happiness": 0.035381,
+        "health": 0.044781,
+        "leadership": 0.059525,
+        "beauty": 0.090604,
+        "composite": 0.064996
+      }
+    },
+    {
+      "char": "小",
+      "freq": 1114
+    },
+    {
+      "char": "辉",
+      "freq": 1069,
+      "scores": {
+        "wealth": 0.086261,
+        "wisdom": 0.041151,
+        "happiness": 0.03435,
+        "health": 0.082319,
+        "leadership": 0.053938,
+        "beauty": 0.05222,
+        "composite": 0.058373
+      }
+    },
+    {
+      "char": "荣",
+      "freq": 1068,
+      "scores": {
+        "wealth": 0.101162,
+        "wisdom": 0.050831,
+        "happiness": 0.024026,
+        "health": 0.055687,
+        "leadership": 0.043086,
+        "beauty": 0.004214,
+        "composite": 0.046501
+      }
+    },
+    {
+      "char": "庆",
+      "freq": 1036,
+      "scores": {
+        "wealth": 0.055997,
+        "wisdom": 0.003207,
+        "happiness": 0.040715,
+        "health": 0.026012,
+        "leadership": 0.012752,
+        "beauty": -0.023765,
+        "composite": 0.019153
+      }
+    },
+    {
+      "char": "云",
+      "freq": 1023,
+      "scores": {
+        "wealth": 0.092781,
+        "wisdom": 0.04544,
+        "happiness": 0.000204,
+        "health": -0.004166,
+        "leadership": 0.001386,
+        "beauty": 0.112464,
+        "composite": 0.041352
+      }
+    },
+    {
+      "char": "立",
+      "freq": 1019,
+      "scores": {
+        "wealth": 0.078204,
+        "wisdom": 0.066755,
+        "happiness": -0.04834,
+        "health": 0.003004,
+        "leadership": -0.010338,
+        "beauty": 0.066422,
+        "composite": 0.025951
+      }
+    },
+    {
+      "char": "英",
+      "freq": 1002,
+      "scores": {
+        "wealth": 0.008779,
+        "wisdom": 0.027038,
+        "happiness": -0.034373,
+        "health": -0.028268,
+        "leadership": 0.123625,
+        "beauty": 0.003994,
+        "composite": 0.016799
+      }
+    },
+    {
+      "char": "杰",
+      "freq": 975,
+      "scores": {
+        "wealth": 0.026295,
+        "wisdom": 0.062202,
+        "happiness": -0.01625,
+        "health": 0.036555,
+        "leadership": 0.086236,
+        "beauty": -0.000269,
+        "composite": 0.032461
+      }
+    },
+    {
+      "char": "忠",
+      "freq": 973,
+      "scores": {
+        "wealth": 0.032528,
+        "wisdom": -0.001209,
+        "happiness": -0.036548,
+        "health": -0.032143,
+        "leadership": 0.008635,
+        "beauty": -0.094274,
+        "composite": -0.020502
+      }
+    },
+    {
+      "char": "斌",
+      "freq": 946
+    },
+    {
+      "char": "波",
+      "freq": 945,
+      "scores": {
+        "wealth": 0.035036,
+        "wisdom": -0.009873,
+        "happiness": 0.002182,
+        "health": -0.036126,
+        "leadership": 0.003109,
+        "beauty": 0.004426,
+        "composite": -0.000208
+      }
+    },
+    {
+      "char": "俊",
+      "freq": 942,
+      "scores": {
+        "wealth": 0.004839,
+        "wisdom": 0.043296,
+        "happiness": 0.032023,
+        "health": 0.073433,
+        "leadership": 0.032924,
+        "beauty": 0.008415,
+        "composite": 0.032488
+      }
+    },
+    {
+      "char": "刚",
+      "freq": 934,
+      "scores": {
+        "wealth": -0.060633,
+        "wisdom": -0.004169,
+        "happiness": 0.00994,
+        "health": -0.021506,
+        "leadership": 0.001632,
+        "beauty": 0.013551,
+        "composite": -0.010198
+      }
+    },
+    {
+      "char": "丽",
+      "freq": 934,
+      "scores": {
+        "wealth": 0.037575,
+        "wisdom": 0.053138,
+        "happiness": 0.054266,
+        "health": 0.050716,
+        "leadership": 0.011359,
+        "beauty": 0.112464,
+        "composite": 0.053253
+      }
+    },
+    {
+      "char": "成",
+      "freq": 928,
+      "scores": {
+        "wealth": 0.047239,
+        "wisdom": 0.032862,
+        "happiness": 0.016103,
+        "health": 0.007973,
+        "leadership": -0.042989,
+        "beauty": 0.025783,
+        "composite": 0.014495
+      }
+    },
+    {
+      "char": "学",
+      "freq": 918,
+      "scores": {
+        "wealth": 0.013719,
+        "wisdom": 0.078061,
+        "happiness": 0.01779,
+        "health": -0.010022,
+        "leadership": 0.057484,
+        "beauty": 0.014758,
+        "composite": 0.028632
+      }
+    },
+    {
+      "char": "金",
+      "freq": 904,
+      "scores": {
+        "wealth": 0.048597,
+        "wisdom": 0.068168,
+        "happiness": 0.010957,
+        "health": 0.025831,
+        "leadership": 0.028842,
+        "beauty": 0.052847,
+        "composite": 0.039207
+      }
+    },
+    {
+      "char": "宏",
+      "freq": 899
+    },
+    {
+      "char": "敏",
+      "freq": 883,
+      "scores": {
+        "wealth": -0.034474,
+        "wisdom": -0.005105,
+        "happiness": 0.001371,
+        "health": -0.025002,
+        "leadership": -0.024219,
+        "beauty": 0.007554,
+        "composite": -0.013312
+      }
+    },
+    {
+      "char": "涛",
+      "freq": 875
+    },
+    {
+      "char": "清",
+      "freq": 831,
+      "scores": {
+        "wealth": 0.074968,
+        "wisdom": 0.028998,
+        "happiness": -0.018112,
+        "health": -0.017706,
+        "leadership": -0.009071,
+        "beauty": 0.091593,
+        "composite": 0.025112
+      }
+    },
+    {
+      "char": "祥",
+      "freq": 816,
+      "scores": {
+        "wealth": 0.13902,
+        "wisdom": 0.025009,
+        "happiness": 0.036575,
+        "health": 0.018582,
+        "leadership": 0.004736,
+        "beauty": -0.003524,
+        "composite": 0.036733
+      }
+    },
+    {
+      "char": "龙",
+      "freq": 811,
+      "scores": {
+        "wealth": 0.122405,
+        "wisdom": 0.013658,
+        "happiness": 0.009373,
+        "health": 0.031735,
+        "leadership": 0.021897,
+        "beauty": -0.015342,
+        "composite": 0.030621
+      }
+    },
+    {
+      "char": "良",
+      "freq": 758,
+      "scores": {
+        "wealth": -0.026075,
+        "wisdom": -0.035919,
+        "happiness": 0.016576,
+        "health": -0.015861,
+        "leadership": -0.009625,
+        "beauty": -0.089294,
+        "composite": -0.0267
+      }
+    },
+    {
+      "char": "振",
+      "freq": 715
+    }
+  ]
+}

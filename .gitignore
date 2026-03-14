@@ -1,0 +1,47 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+dist/
+build/
+*.egg
+.eggs/
+
+# Virtual environments
+venv/
+env/
+.venv/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Data files (large, download separately)
+data/raw/
+*.h5
+*.hdf5
+
+# Results (regenerable)
+results/*.csv
+results/*.png
+results/*.html
+!results/.gitkeep
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb_meta
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment variables
+.env
+.env.local
+
+# Model cache
+models_cache/
+~/.cache/huggingface/
