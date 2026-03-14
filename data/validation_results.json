@@ -1,0 +1,150 @@
+{
+  "china_grantee_validation": {
+    "source": "Chinese Gender Dataset grantees vs CCNC",
+    "n_grantee": 99729,
+    "n_general": 99729,
+    "fusion_auc_mean": 0.7476,
+    "fusion_auc_std": 0.0307,
+    "dimensions": {
+      "wealth": {
+        "grantee_mean": 0.0222,
+        "general_mean": 0.018834,
+        "diff": 0.003366,
+        "t": 38.9642,
+        "p": 0.0
+      },
+      "wisdom": {
+        "grantee_mean": 0.0222,
+        "general_mean": 0.018834,
+        "diff": 0.003366,
+        "t": 38.9642,
+        "p": 0.0
+      },
+      "happiness": {
+        "grantee_mean": 0.0222,
+        "general_mean": 0.018834,
+        "diff": 0.003366,
+        "t": 38.9642,
+        "p": 0.0
+      },
+      "health": {
+        "grantee_mean": 0.0222,
+        "general_mean": 0.018834,
+        "diff": 0.003366,
+        "t": 38.9642,
+        "p": 0.0
+      },
+      "leadership": {
+        "grantee_mean": 0.0222,
+        "general_mean": 0.018834,
+        "diff": 0.003366,
+        "t": 38.9642,
+        "p": 0.0
+      },
+      "beauty": {
+        "grantee_mean": 0.0222,
+        "general_mean": 0.018834,
+        "diff": 0.003366,
+        "t": 38.9642,
+        "p": 0.0
+      }
+    }
+  },
+  "us_salary_validation": {
+    "source": "Chicago City Employee Salaries (32K employees)",
+    "n_matched": 22749,
+    "individual_pearson_r": 0.2002,
+    "individual_p": 2.5668684097621255e-204,
+    "name_level_pearson_r": 0.3449,
+    "name_level_p": 8.767220874966691e-13,
+    "n_names_10plus": 406
+  },
+  "elite_validation": {
+    "control_mean": -0.021847841799999997,
+    "categories": {
+      "Billionaires": {
+        "n": 1699,
+        "mean": 0.0415,
+        "diff_vs_control": 0.0634,
+        "t": 65.08,
+        "p": 0.0
+      },
+      "Nobel Laureates": {
+        "n": 860,
+        "mean": 0.0457,
+        "diff_vs_control": 0.0676,
+        "t": 54.69,
+        "p": 0.0
+      },
+      "Oscar Winners": {
+        "n": 125,
+        "mean": 0.0569,
+        "diff_vs_control": 0.0788,
+        "t": 27.45,
+        "p": 7.669427148375038e-155
+      },
+      "US Senators": {
+        "n": 965,
+        "mean": 0.0643,
+        "diff_vs_control": 0.0862,
+        "t": 74.72,
+        "p": 0.0
+      },
+      "Olympic Gold": {
+        "n": 950,
+        "mean": 0.0463,
+        "diff_vs_control": 0.0682,
+        "t": 59.67,
+        "p": 0.0
+      },
+      "Chinese Entrepreneurs": {
+        "n": 476,
+        "mean": 0.0227,
+        "diff_vs_control": 0.0039,
+        "t": 4.28,
+        "p": 1.905319077875872e-05
+      }
+    }
+  },
+  "selfmade_vs_inherited": {
+    "source": "Forbes Billionaires (CORGIS, 2077 unique individuals)",
+    "wealth_type_groups": {
+      "founder non-finance": {
+        "n": 474,
+        "mean": 0.0459,
+        "std": 0.0414
+      },
+      "privatized and resources": {
+        "n": 169,
+        "mean": 0.0292,
+        "std": 0.0427
+      },
+      "inherited": {
+        "n": 567,
+        "mean": 0.0364,
+        "std": 0.0432
+      },
+      "self-made finance": {
+        "n": 342,
+        "mean": 0.0484,
+        "std": 0.0416
+      },
+      "executive": {
+        "n": 137,
+        "mean": 0.0471,
+        "std": 0.0393
+      }
+    },
+    "selfmade_vs_inherited": {
+      "selfmade_n": 816,
+      "selfmade_mean": 0.047,
+      "inherited_n": 567,
+      "inherited_mean": 0.0364,
+      "diff": 0.0106,
+      "t": 4.589,
+      "p": 5e-06,
+      "conclusion": "Self-made billionaires have HIGHER WEAT scores than inherited ones"
+    },
+    "by_relationship": {}
+  }
+}

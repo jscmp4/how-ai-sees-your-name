@@ -20,6 +20,7 @@ SUCCESS_PATH = DATA_DIR / "success_analysis.json"
 FREQ_ZH_PATH = DATA_DIR / "name_freq_zh.json"
 SSA_TRENDS_PATH = DATA_DIR / "ssa_trends.json"
 BERT_SCORES_PATH = DATA_DIR / "char_scores_bert.json"
+NAME_WHOLE_PATH = DATA_DIR / "name_whole_scores.json"
 
 # ── 维度配置 ──
 DIMENSIONS = {
@@ -94,6 +95,14 @@ def load_ssa_trends() -> dict:
 def load_bert_scores() -> dict:
     if BERT_SCORES_PATH.exists():
         with open(BERT_SCORES_PATH, encoding="utf-8") as f:
+            return json.load(f)
+    return {}
+
+
+@st.cache_data
+def load_name_whole_scores() -> dict:
+    if NAME_WHOLE_PATH.exists():
+        with open(NAME_WHOLE_PATH, encoding="utf-8") as f:
             return json.load(f)
     return {}
 
@@ -430,10 +439,35 @@ def page_xray():
         </div>
         """, unsafe_allow_html=True)
 
-    # ── 雷达图 ──
-    trace = make_radar(name, scores, color="#00d4ff")
-    fig = make_radar_figure([trace], title=f"「{name}」六维语义雷达")
-    st.plotly_chart(fig, use_container_width=True)
+    # ── 整词 vs 字均分析 ──
+    name_whole = load_name_whole_scores()
+    has_whole = name in name_whole
+
+    if has_whole:
+        whole_scores = {d: name_whole[name][d] for d in DIM_KEYS if d in name_whole[name]}
+        whole_comp = name_whole[name].get("composite", 0)
+        char_avg_scores = name_whole[name].get("char_avg", {})
+
+        st.info(f"💡 「{name}」作为整词存在于词向量模型中！整词得分和字均得分可能有显著差异。")
+
+        col_w, col_a = st.columns(2)
+        with col_w:
+            st.metric("整词综合分", f"{whole_comp:.4f}", help="名字作为一个整体在语料中学到的向量")
+        with col_a:
+            st.metric("字均综合分", f"{comp:.4f}",
+                      delta=f"{comp - whole_comp:+.4f} vs 整词",
+                      help="拆成单字取平均的向量")
+
+        # 双雷达：整词 vs 字均
+        trace_whole = make_radar(f"{name} (整词)", whole_scores, color="#FFD700", fill_opacity=0.15)
+        trace_avg = make_radar(f"{name} (字均)", scores, color="#00d4ff", fill_opacity=0.15)
+        fig = make_radar_figure([trace_whole, trace_avg], title=f"「{name}」整词 vs 字均")
+        st.plotly_chart(fig, use_container_width=True)
+    else:
+        # 普通雷达图
+        trace = make_radar(name, scores, color="#00d4ff")
+        fig = make_radar_figure([trace], title=f"「{name}」六维语义雷达")
+        st.plotly_chart(fig, use_container_width=True)
 
     # ── 各维度条形图 ──
     st.plotly_chart(make_dimension_bars(scores, name), use_container_width=True)
