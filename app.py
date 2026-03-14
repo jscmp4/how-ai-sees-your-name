@@ -17,6 +17,9 @@ SCORES_PATH = DATA_DIR / "char_scores.json"
 NEIGHBORS_PATH = DATA_DIR / "char_neighbors.json"
 EN_SCORES_PATH = DATA_DIR / "en_name_scores.json"
 SUCCESS_PATH = DATA_DIR / "success_analysis.json"
+FREQ_ZH_PATH = DATA_DIR / "name_freq_zh.json"
+SSA_TRENDS_PATH = DATA_DIR / "ssa_trends.json"
+BERT_SCORES_PATH = DATA_DIR / "char_scores_bert.json"
 
 # ── 维度配置 ──
 DIMENSIONS = {
@@ -67,6 +70,30 @@ def load_en_scores() -> dict:
 def load_success_analysis() -> dict:
     if SUCCESS_PATH.exists():
         with open(SUCCESS_PATH, encoding="utf-8") as f:
+            return json.load(f)
+    return {}
+
+
+@st.cache_data
+def load_freq_zh() -> dict:
+    if FREQ_ZH_PATH.exists():
+        with open(FREQ_ZH_PATH, encoding="utf-8") as f:
+            return json.load(f)
+    return {}
+
+
+@st.cache_data
+def load_ssa_trends() -> dict:
+    if SSA_TRENDS_PATH.exists():
+        with open(SSA_TRENDS_PATH, encoding="utf-8") as f:
+            return json.load(f)
+    return {}
+
+
+@st.cache_data
+def load_bert_scores() -> dict:
+    if BERT_SCORES_PATH.exists():
+        with open(BERT_SCORES_PATH, encoding="utf-8") as f:
             return json.load(f)
     return {}
 
@@ -435,6 +462,37 @@ def page_xray():
                 st.markdown(f"**语义邻居:**<br>{tags_html}", unsafe_allow_html=True)
 
             st.markdown("</div>", unsafe_allow_html=True)
+
+    # ── 频率数据 ──
+    freq_zh = load_freq_zh()
+    if name in freq_zh:
+        st.markdown("---")
+        st.markdown("#### 📈 名字流行度")
+        fi = freq_zh[name]
+        c1, c2, c3 = st.columns(3)
+        with c1:
+            st.metric("使用人数 (样本中)", f"{fi['count']:,}")
+        with c2:
+            st.metric("流行度排名", f"#{fi['rank']:,}")
+        with c3:
+            st.metric("女性使用比例", f"{fi['female_ratio']}%")
+
+    # ── BERT对比 ──
+    bert_scores = load_bert_scores()
+    if bert_scores:
+        bert_data = []
+        for ch in found_chars:
+            if ch in bert_scores:
+                bert_data.append(bert_scores[ch])
+        if bert_data:
+            bert_avg = {d: float(np.mean([b[d] for b in bert_data if d in b])) for d in DIM_KEYS}
+            st.markdown("---")
+            st.markdown("#### 🔄 Word2Vec vs BERT 对比")
+            st.caption("两套不同的AI模型对同一个名字的评价")
+            w2v_trace = make_radar(f"{name} (Word2Vec)", scores, color="#00d4ff", fill_opacity=0.15)
+            bert_trace = make_radar(f"{name} (BERT)", bert_avg, color="#ff6b35", fill_opacity=0.15)
+            fig = make_radar_figure([w2v_trace, bert_trace], title="Word2Vec vs BERT")
+            st.plotly_chart(fig, use_container_width=True)
 
     # ── AI描述 ──
     st.markdown("---")
@@ -805,6 +863,39 @@ def page_english():
     # 条形图
     st.plotly_chart(make_dimension_bars(dim_scores, matched), use_container_width=True)
 
+    # SSA 历史趋势
+    ssa_trends = load_ssa_trends()
+    trend_data = ssa_trends.get(matched)
+    if trend_data:
+        st.markdown("---")
+        st.markdown(f'#### 📈 "{matched}" Popularity Over Time (SSA 1880-2024)')
+        col1, col2 = st.columns(2)
+        with col1:
+            st.metric("Peak Year", str(trend_data["peak_year"]))
+        with col2:
+            st.metric("Total Births (all years)", f"{trend_data['total']:,}")
+
+        trend = trend_data["trend"]
+        years = sorted(trend.keys(), key=int)
+        fig = go.Figure(go.Scatter(
+            x=[int(y) for y in years],
+            y=[trend[y] for y in years],
+            mode="lines+markers",
+            line=dict(color="#da70d6", width=2.5),
+            marker=dict(size=5),
+            fill="tozeroy",
+            fillcolor=_hex_to_rgba("#da70d6", 0.15),
+        ))
+        fig.update_layout(
+            xaxis=dict(title="Year", tickfont=dict(color="#999"), title_font=dict(color="#999"),
+                       gridcolor="rgba(255,255,255,0.1)"),
+            yaxis=dict(title="Per 10K births", tickfont=dict(color="#999"), title_font=dict(color="#999"),
+                       gridcolor="rgba(255,255,255,0.1)"),
+            paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+            height=300, margin=dict(t=10, b=40),
+        )
+        st.plotly_chart(fig, use_container_width=True)
+
 
 def page_success():
     """页面: 名运分析"""
@@ -988,6 +1079,107 @@ def _save_env(anthropic_key: str, openai_key: str):
         f.write("\n".join(lines) + "\n")
 
 
+def page_generator():
+    """页面: 名字生成器"""
+    char_scores = load_char_scores()
+    freq_zh = load_freq_zh()
+
+    st.markdown("### ✨ 名字生成器")
+    st.caption("设定你想要的维度偏好，自动从字库中组合最优名字")
+
+    st.markdown("#### 调整维度权重")
+
+    # 权重滑块
+    weights = {}
+    cols = st.columns(3)
+    for i, dim in enumerate(DIM_KEYS):
+        info = DIMENSIONS[dim]
+        with cols[i % 3]:
+            weights[dim] = st.slider(
+                f"{info['icon']} {info['label']}",
+                0.0, 1.0, 0.5, 0.1,
+                key=f"gen_w_{dim}",
+            )
+
+    col_opt1, col_opt2 = st.columns(2)
+    with col_opt1:
+        name_len = st.radio("名字长度", [1, 2], index=1, horizontal=True)
+    with col_opt2:
+        prefer_female = st.checkbox("偏好女性用字", value=True)
+
+    if st.button("🎲 生成推荐", type="primary", use_container_width=True):
+        # 对每个字算加权得分
+        char_weighted = {}
+        for ch, sc in char_scores.items():
+            w_score = 0
+            w_total = 0
+            for dim in DIM_KEYS:
+                w = weights.get(dim, 0.5)
+                if dim in sc:
+                    w_score += sc[dim] * w
+                    w_total += w
+            if w_total > 0:
+                char_weighted[ch] = w_score / w_total
+
+        # 按加权分排序
+        ranked_chars = sorted(char_weighted.items(), key=lambda x: x[1], reverse=True)
+
+        # 过滤偏好
+        if prefer_female and freq_zh:
+            # 取在名字数据中女性比例>50%的字
+            female_chars = set()
+            for name_str, fi in freq_zh.items():
+                if fi.get("female_ratio", 50) > 50:
+                    for ch in name_str:
+                        female_chars.add(ch)
+            if female_chars:
+                ranked_chars = [(c, s) for c, s in ranked_chars if c in female_chars] or ranked_chars
+
+        top_chars = ranked_chars[:50]
+
+        if name_len == 1:
+            results = [(ch, score) for ch, score in top_chars[:20]]
+        else:
+            # 两两组合
+            combos = []
+            pool = top_chars[:30]
+            for i, (c1, s1) in enumerate(pool):
+                for c2, s2 in pool[i + 1:]:
+                    combos.append((c1 + c2, (s1 + s2) / 2))
+                    combos.append((c2 + c1, (s1 + s2) / 2))
+            combos.sort(key=lambda x: x[1], reverse=True)
+            # 去重只取每个组合的最佳排列
+            seen = set()
+            results = []
+            for name, score in combos:
+                key = "".join(sorted(name))
+                if key not in seen:
+                    seen.add(key)
+                    results.append((name, score))
+                if len(results) >= 30:
+                    break
+
+        st.markdown("---")
+        st.markdown(f"#### 🏆 Top {len(results)} 推荐")
+
+        for rank, (name, score) in enumerate(results, 1):
+            name_scores = get_name_scores(name, char_scores)
+            if not name_scores:
+                continue
+
+            with st.expander(f"**#{rank}  {name}**  (加权分 {score:.4f})", expanded=rank <= 3):
+                dims_text = " · ".join(
+                    f"{DIMENSIONS[d]['icon']}{name_scores[d]:.3f}"
+                    for d in DIM_KEYS if d in name_scores
+                )
+                st.markdown(dims_text)
+
+                # 迷你雷达
+                trace = make_radar(name, name_scores, color=DIMENSIONS[DIM_KEYS[rank % 6]]["color"])
+                fig = make_radar_figure([trace], height=300)
+                st.plotly_chart(fig, use_container_width=True)
+
+
 def sidebar_settings():
     """侧边栏设置面板：API密钥管理。"""
     with st.sidebar:
@@ -1057,11 +1249,12 @@ def main():
     sidebar_settings()
 
     # 导航
-    tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
+    tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([
         "🔬 名字X光",
         "⚔️ 名字PK",
         "🌍 English",
         "📊 名运分析",
+        "✨ 名字生成",
         "🏆 排行榜",
         "📖 关于",
     ])
@@ -1075,8 +1268,10 @@ def main():
     with tab4:
         page_success()
     with tab5:
-        page_leaderboard()
+        page_generator()
     with tab6:
+        page_leaderboard()
+    with tab7:
         page_about()
 
 
