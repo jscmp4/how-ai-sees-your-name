@@ -107,6 +107,113 @@ def load_name_whole_scores() -> dict:
     return {}
 
 
+# ══════════════════════════════════════════════════════════════
+# 实时计算引擎 (fallback when name not in precomputed data)
+# ══════════════════════════════════════════════════════════════
+
+@st.cache_resource
+def _load_zh_model():
+    """加载中文词向量模型 (首次约8秒, 后续缓存)。"""
+    from text2vec import Word2Vec
+    w2v = Word2Vec("w2v-light-tencent-chinese")
+    return w2v.w2v
+
+
+@st.cache_resource
+def _load_en_model():
+    """加载GloVe英文词向量 (首次约50秒, 后续缓存)。"""
+    from gensim.models import KeyedVectors
+    glove_path = DATA_DIR / "raw" / "glove.6B.300d.txt"
+    if not glove_path.exists():
+        return None
+    return KeyedVectors.load_word2vec_format(str(glove_path), binary=False, no_header=True)
+
+
+@st.cache_resource
+def _load_zh_attrs():
+    """加载中文属性词集。"""
+    from config.settings import WEAT_ATTRIBUTES
+    return WEAT_ATTRIBUTES
+
+
+@st.cache_resource
+def _load_en_attrs():
+    """加载英文属性词集。"""
+    from config.settings import WEAT_ATTRIBUTES_EN
+    return WEAT_ATTRIBUTES_EN
+
+
+def _compute_weat_vec(vec, model, pos_words, neg_words):
+    """对一个向量计算 WEAT 得分。"""
+    norm = np.linalg.norm(vec)
+    if norm == 0:
+        return 0.0
+    pos = [float(np.dot(vec, model[w]) / (norm * np.linalg.norm(model[w])))
+           for w in pos_words if w in model and np.linalg.norm(model[w]) > 0]
+    neg = [float(np.dot(vec, model[w]) / (norm * np.linalg.norm(model[w])))
+           for w in neg_words if w in model and np.linalg.norm(model[w]) > 0]
+    if not pos or not neg:
+        return 0.0
+    return float(np.mean(pos) - np.mean(neg))
+
+
+def compute_zh_realtime(name: str) -> dict | None:
+    """实时计算中文名字的 WEAT 得分。"""
+    model = _load_zh_model()
+    attrs = _load_zh_attrs()
+
+    chars_in = [ch for ch in name if ch in model]
+    if not chars_in:
+        return None
+
+    # 字均
+    scores = {}
+    for dim, attr in attrs.items():
+        char_scores_dim = []
+        for ch in chars_in:
+            s = _compute_weat_vec(model[ch], model, attr["positive"], attr["negative"])
+            char_scores_dim.append(s)
+        scores[dim] = round(float(np.mean(char_scores_dim)), 6)
+    scores["composite"] = round(float(np.mean(list(scores.values()))), 6)
+
+    # 邻居词
+    neighbors = {}
+    for ch in chars_in:
+        try:
+            nb = model.most_similar(ch, topn=10)
+            neighbors[ch] = [[w, round(float(s), 4)] for w, s in nb
+                             if any("\u4e00" <= c <= "\u9fff" for c in w)][:10]
+        except Exception:
+            neighbors[ch] = []
+
+    return {"scores": scores, "neighbors": neighbors, "found_chars": chars_in}
+
+
+def compute_en_realtime(name: str) -> dict | None:
+    """实时计算英文名字的 WEAT 得分。"""
+    model = _load_en_model()
+    if model is None:
+        return None
+    attrs = _load_en_attrs()
+
+    # 尝试各种大小写
+    token = None
+    for v in [name, name.lower(), name.capitalize(), name.upper()]:
+        if v in model:
+            token = v
+            break
+    if token is None:
+        return None
+
+    vec = model[token]
+    scores = {}
+    for dim, attr in attrs.items():
+        scores[dim] = round(_compute_weat_vec(vec, model, attr["positive"], attr["negative"]), 6)
+    scores["composite"] = round(float(np.mean(list(scores.values()))), 6)
+
+    return {"scores": scores, "token": token}
+
+
 def get_name_scores(name: str, char_scores: dict) -> dict | None:
     """计算名字的6维得分（取各字平均）。"""
     char_data = []
@@ -382,7 +489,7 @@ def page_xray():
     char_neighbors = load_char_neighbors()
 
     st.markdown("### 🔬 名字 X 光")
-    st.caption("输入任意中文名字，透视它在AI向量空间中的语义坐标")
+    st.caption("输入任意名字（中文或英文），透视它在AI向量空间中的语义坐标")
 
     # 快捷建议按钮（必须在 text_input 之前，通过 callback 设值）
     if "xray_input" not in st.session_state:
@@ -464,7 +571,24 @@ def page_xray():
                 st.plotly_chart(fig_t, use_container_width=True)
             return
         else:
-            st.error(f'"{name}" not found in GloVe vocabulary. Try the English tab for more options.')
+            # Realtime fallback: 加载GloVe模型现算
+            with st.spinner(f'"{name}" not in cache — loading GloVe model for real-time computation...'):
+                rt = compute_en_realtime(name)
+            if rt:
+                dim_scores = {d: rt["scores"].get(d, 0) for d in DIM_KEYS}
+                comp_en = rt["scores"].get("composite", 0)
+                st.success(f'Real-time computed "{rt["token"]}" via GloVe 300d')
+                col1, col2 = st.columns(2)
+                with col1:
+                    st.metric("Composite WEAT", f"{comp_en:.4f}")
+                with col2:
+                    st.metric("Source", "Real-time (GloVe)")
+                trace = make_radar(rt["token"], dim_scores, color="#da70d6")
+                fig = make_radar_figure([trace], title=f'"{rt["token"]}" Semantic Radar')
+                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(make_dimension_bars(dim_scores, rt["token"]), use_container_width=True)
+            else:
+                st.error(f'"{name}" not found in GloVe vocabulary (400K words). Try a different spelling.')
             return
 
     # 检查字符覆盖
@@ -472,7 +596,37 @@ def page_xray():
     missing_chars = [ch for ch in name if ch not in char_scores]
 
     if not found_chars:
-        st.error(f"抱歉，「{name}」中的字不在我们的分析范围内。请尝试其他名字。")
+        # Realtime fallback: 加载中文词向量现算
+        has_cn = any("\u4e00" <= ch <= "\u9fff" for ch in name)
+        if has_cn:
+            with st.spinner("加载词向量模型，实时计算中..."):
+                rt = compute_zh_realtime(name)
+            if rt:
+                scores = rt["scores"]
+                comp = scores.get("composite", 0)
+                st.success(f"实时计算完成（字: {'、'.join(rt['found_chars'])}）")
+
+                col1, col2 = st.columns([2, 1])
+                with col1:
+                    st.metric("综合WEAT得分", f"{comp:.4f}")
+                with col2:
+                    st.metric("来源", "实时计算")
+
+                dim_scores_rt = {d: scores.get(d, 0) for d in DIM_KEYS}
+                trace = make_radar(name, dim_scores_rt, color="#00d4ff")
+                fig = make_radar_figure([trace], title=f"「{name}」六维语义雷达")
+                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(make_dimension_bars(dim_scores_rt, name), use_container_width=True)
+
+                # 邻居词
+                st.markdown("#### 🔍 实时邻居词")
+                for ch in rt["found_chars"]:
+                    if ch in rt["neighbors"] and rt["neighbors"][ch]:
+                        tags = " ".join(f'`{w} {s:.2f}`' for w, s in rt["neighbors"][ch][:8])
+                        st.markdown(f"**{ch}**: {tags}")
+                return
+
+        st.error(f"抱歉，「{name}」中的字不在分析范围内，实时计算也未能匹配。")
         return
 
     if missing_chars:
@@ -927,13 +1081,24 @@ def page_english():
             break
 
     if not matched:
-        st.error(f'"{en_name}" not found in GloVe vocabulary. Try a different spelling.')
-        return
-
-    scores = en_scores[matched]
-    dim_scores = {d: scores.get(d, 0) for d in DIM_KEYS}
-    comp = scores.get("composite", 0)
-    freq = scores.get("frequency", 0)
+        # Realtime fallback
+        with st.spinner(f'"{en_name}" not in cache — loading GloVe for real-time computation...'):
+            rt = compute_en_realtime(en_name)
+        if rt:
+            matched = rt["token"]
+            scores = rt["scores"]
+            dim_scores = {d: scores.get(d, 0) for d in DIM_KEYS}
+            comp = scores.get("composite", 0)
+            freq = 0
+            st.success(f'Real-time computed "{matched}" via GloVe 300d (not in precomputed cache)')
+        else:
+            st.error(f'"{en_name}" not found in GloVe vocabulary (400K words). Try a different spelling.')
+            return
+    else:
+        scores = en_scores[matched]
+        dim_scores = {d: scores.get(d, 0) for d in DIM_KEYS}
+        comp = scores.get("composite", 0)
+        freq = scores.get("frequency", 0)
 
     # 得分卡片
     col1, col2, col3 = st.columns(3)
