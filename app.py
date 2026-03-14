@@ -409,6 +409,64 @@ def page_xray():
                           on_click=_set_suggestion, args=(s,))
         return
 
+    # 检测是否为英文名 → 自动用英文分析
+    if all(c.isascii() for c in name) and name.strip().isalpha():
+        en_scores = load_en_scores()
+        matched = None
+        for variant in [name, name.capitalize(), name.title(), name.upper(), name.lower()]:
+            if variant in en_scores:
+                matched = variant
+                break
+        if matched:
+            en_s = en_scores[matched]
+            dim_scores = {d: en_s.get(d, 0) for d in DIM_KEYS}
+            comp_en = en_s.get("composite", 0)
+            freq = en_s.get("frequency", 0)
+
+            st.info(f'Detected English name — analyzing "{matched}" with GloVe 300d')
+
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                st.metric("Composite WEAT", f"{comp_en:.4f}")
+            with col2:
+                all_comp = [v.get("composite", 0) for v in en_scores.values()]
+                pct = sum(1 for x in all_comp if comp_en > x) / len(all_comp) * 100
+                st.metric("Percentile", f"Top {100 - pct:.1f}%")
+            with col3:
+                st.metric("SSA Popularity", f"{freq:,}" if freq else "N/A")
+
+            trace = make_radar(matched, dim_scores, color="#da70d6")
+            fig = make_radar_figure([trace], title=f'"{matched}" Semantic Radar')
+            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(make_dimension_bars(dim_scores, matched), use_container_width=True)
+
+            # SSA趋势
+            ssa_trends = load_ssa_trends()
+            trend_data = ssa_trends.get(matched)
+            if trend_data:
+                st.markdown(f'#### 📈 "{matched}" Popularity (SSA 1880-2024)')
+                trend = trend_data["trend"]
+                years = sorted(trend.keys(), key=int)
+                import plotly.graph_objects as go_local
+                fig_t = go.Figure(go.Scatter(
+                    x=[int(y) for y in years], y=[trend[y] for y in years],
+                    mode="lines+markers", line=dict(color="#da70d6", width=2.5),
+                    fill="tozeroy", fillcolor=_hex_to_rgba("#da70d6", 0.15),
+                ))
+                fig_t.update_layout(
+                    xaxis=dict(title="Year", tickfont=dict(color="#999"), title_font=dict(color="#999"),
+                               gridcolor="rgba(255,255,255,0.1)"),
+                    yaxis=dict(title="Per 10K births", tickfont=dict(color="#999"), title_font=dict(color="#999"),
+                               gridcolor="rgba(255,255,255,0.1)"),
+                    paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+                    height=300, margin=dict(t=10, b=40),
+                )
+                st.plotly_chart(fig_t, use_container_width=True)
+            return
+        else:
+            st.error(f'"{name}" not found in GloVe vocabulary. Try the English tab for more options.')
+            return
+
     # 检查字符覆盖
     found_chars = [ch for ch in name if ch in char_scores]
     missing_chars = [ch for ch in name if ch not in char_scores]
